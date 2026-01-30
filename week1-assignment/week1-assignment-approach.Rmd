@@ -1,0 +1,61 @@
+---
+title: "Week1 Assignment Approach"
+author: "Qingquan Li"
+date: "2026-01-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+I will build a workflow around VOO (Vanguard S&P 500 ETF) historical market data from Yahoo Finance. The goal is to
+1. acquire the dataset from an accessible source
+2. load it into R in a clean, well-documented way
+3. perform a small set of transformations that make the data analysis-ready for later weeks.
+
+Related article (anchor for motivation and context):  
+
+*Vanguard triumphs over State Street to take largest ETF crown* (Financial Times, https://www.ft.com/content/641e9fd7-c989-4831-917b-23b3250be7db)  
+This article discusses VOO’s scale and why low-cost index ETFs have become dominant.
+
+
+## Dataset and source
+
+Dataset: VOO (Vanguard S&P 500 ETF) historical daily price series  
+Source: Yahoo Finance VOO historical data: https://finance.yahoo.com/quote/VOO/history/
+
+### What the dataset contains
+
+VOO historical market data provides a daily time series with the following columns: Date, Open, High, Low, Close, Adj.Close, Volume. The “Close” is adjusted for splits, while “Adj.Close” is adjusted for dividends and splits, which makes it better for return calculations.
+
+VOO itself is an index ETF designed to track the performance of the S&P 500 Index.
+
+## Motivation for selecting this dataset
+
+- It is widely used in real investing (and personally relevant, I hold some): VOO is a core S&P 500 index ETF, so its returns and risk profile are a practical baseline for many finance questions (e.g., long-term growth, volatility).
+- It supports many “data management” skills early: even though the dataset is conceptually simple (a daily time series), it still requires correct handling of dates, missing trading days, and the distinction between adjusted vs. unadjusted prices.
+- It’s easy to extend later: I can later join additional data (dividends, macro indicators, CPI, risk-free rate) or compare to other tickers (SPY, IVV, or individual stocks) without changing the base workflow.
+
+## Planned approach (how I will tackle the problem)
+
+- Acquire data: pull VOO historical data programmatically
+- Scope the dataset: start with a clear time window (e.g., last 10 years) and core fields (e.g., Date, Adj.Close).
+- Clean + transform: standardize column names, parse dates, sort by time, and use Adj.Close for return calculations.
+- Create simple features: compute daily returns and a few rolling metrics (moving average, volatility) with basic sanity checks.
+- Document assumptions: note why Adj.Close is used, and any filtering/limitations for transparency and reproducibility.
+
+## Anticipated data challenges
+
+- Access stability / scraping risk: Yahoo Finance pages and endpoints can change. To mitigate, I’ll use a package-based retrieval method.
+- Trading calendar gaps: weekends and holidays will create gaps in the Date series; features like rolling windows must be computed on trading days only.
+- Time period selection bias: results can change materially depending on start/end dates; I’ll justify the chosen window and note limitations.
+
+## Conclusion / next steps
+
+After producing a clean, transformed daily dataset for VOO, my next step will be to extend the analysis in later weeks by:
+
+- comparing VOO vs SPY/IVV, or individual stocks.
+- adding risk-free rates (to compute excess returns / Sharpe-like measures).
