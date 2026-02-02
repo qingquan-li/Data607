@@ -1,0 +1,137 @@
+---
+title: "Week1 Assignment Codebase"
+author: "Qingquan Li"
+format: html
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Introduction
+
+For this deliverable, I will use VOO (Vanguard S&P 500 ETF) historical daily price data (10 years) to estimate its annual rate of return. As a motivating article, I’m using a Financial Times report explaining how VOO surpassed State Street’s SPY to become the world’s largest ETF, highlighting why VOO is widely held as a long-term index investment: https://www.ft.com/content/641e9fd7-c989-4831-917b-23b3250be7db
+
+# Body
+
+## Business question → data question
+
+**Business question:** “How has VOO performed over time, and what is its annual rate of return?”  
+**Data question:** “Using historical prices, what is the return for each calendar year, and what is the annualized return over the full period?”
+
+## Step 1 — Load the data
+
+I downloaded 10-year daily VOO data from Yahoo Finance (via yfinance). To keep this reproducible, I will store the CSV inside my project.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(scales)
+
+# data_path <- "data/voo_2016_to_2025.csv"
+data_url <- "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week1-assignment/data/voo_2016_to_2025.csv"
+
+# voo_raw <- read_csv(data_path, show_col_types = FALSE)
+voo_raw <- read_csv(data_url, show_col_types = FALSE)
+
+glimpse(voo_raw)
+```
+
+## Step 2 — Clean and standardize
+
+Workflow notes:
+- Convert `Date` into a proper date type
+- Ensure rows are sorted by date
+- Filter to `Ticker == "VOO"` (if the file contains multiple tickers)
+- Keep **Adj Close** as the price series for returns (adjusted for dividends/splits)
+
+```{r}
+voo <- voo_raw %>%
+  janitor::clean_names() %>%                # makes names like adj_close, ticker, date
+  mutate(date = as_date(date)) %>%
+  filter(is.na(ticker) | ticker == "VOO") %>%
+  arrange(date) %>%
+  select(date, open, high, low, close, adj_close, volume, ticker)
+
+summary(voo$date)
+```
+
+## Step 3 — Compute annual returns (calendar year)
+
+Definition used here:
+- **Annual return (year Y)** = (last Adj Close in Y / first Adj Close in Y) − 1
+
+```{r}
+annual_returns <- voo %>%
+  mutate(year = year(date)) %>%
+  group_by(year) %>%
+  arrange(date, .by_group = TRUE) %>%
+  summarise(
+    first_date = first(date),
+    last_date  = last(date),
+    first_adj_close = first(adj_close),
+    last_adj_close  = last(adj_close),
+    annual_return = (last_adj_close / first_adj_close) - 1,
+    .groups = "drop"
+  ) %>%
+  mutate(annual_return_pct = percent(annual_return, accuracy = 0.01))
+
+annual_returns %>%
+  select(year, first_date, last_date, annual_return_pct) %>%
+  knitr::kable()
+```
+
+## Step 4 — Compute annualized return (CAGR) over the full period
+
+This answers: “If VOO grew at a constant rate each year over the sample, what would that annual rate be?”
+
+- **CAGR** = (ending Adj Close / starting Adj Close) ^ (1 / years) − 1
+
+```{r}
+start_price <- first(voo$adj_close)
+end_price   <- last(voo$adj_close)
+years <- as.numeric(difftime(max(voo$date), min(voo$date), units = "days")) / 365.25
+
+cagr <- (end_price / start_price)^(1 / years) - 1
+
+tibble(
+  start_date = min(voo$date),
+  end_date   = max(voo$date),
+  start_adj_close = start_price,
+  end_adj_close   = end_price,
+  years = years,
+  cagr = cagr,
+  cagr_pct = percent(cagr, accuracy = 0.01)
+) %>% knitr::kable()
+```
+
+## Step 5 — Visual checks
+
+These plots help confirm the time series looks reasonable and make annual performance easy to interpret.
+
+```{r}
+# Price series
+ggplot(voo, aes(x = date, y = adj_close)) +
+  geom_line() +
+  labs(
+    title = "VOO Adjusted Close (Daily)",
+    x = "Date",
+    y = "Adjusted Close"
+  )
+```
+
+```{r}
+# Annual returns
+ggplot(annual_returns, aes(x = factor(year), y = annual_return)) +
+  geom_col() +
+  scale_y_continuous(labels = percent) +
+  labs(
+    title = "VOO Calendar-Year Returns (Adj Close)",
+    x = "Year",
+    y = "Annual Return"
+  )
+```
+
+# Conclusions
+
+Using daily VOO data, I calculated calendar-year returns based on the first and last adjusted close prices each year and computed the annualized return (CAGR) over the full time window. In a future extension, I could (1) incorporate dividend cashflows directly, (2) compare VOO against other S&P 500 ETFs (e.g., SPY or IVV), and (3) validate results by pulling the same series from an alternate source (e.g., Vanguard’s fund page or another market data provider) to confirm consistency.
