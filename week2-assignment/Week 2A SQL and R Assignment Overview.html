@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html><head><link rel="stylesheet" href="https://s.brightspace.com/lib/fonts/0.6.1/fonts.css"></head><body style="color: rgb(32, 33, 34); font-family: Lato, sans-serif; font-size: 19px;"><hr data-end="435" data-start="432">
+<h3 data-end="529" data-start="488">Assignment: SQL and R – Movie Ratings</h3>
+<p data-end="629" data-start="531"><strong data-end="544" data-start="531">Objective</strong><br data-end="547" data-start="544">Collect simple movie-rating data, store it in a SQL database, and analyze it in R.</p>
+<ol>
+<li data-end="629" data-start="531"><strong data-end="544" data-start="531">Implementation Notes:</strong><br data-end="547" data-start="544">PostgreSQL is the recommended (and supported) relational database for this assignment.&nbsp; If you are unable to install and configure PostgreSQL in your environment, you may find <a href="https://sqlite.org/" target="_blank" rel="noopener">SQLite</a> easier to use.&nbsp; Students experienced with relational databases may use any local or cloud-based database for their assignment.</li>
+<li data-end="629" data-start="531"><strong>NEVER include passwords in your code.&nbsp; </strong>For this assignment, the ability to reproduce your work in my environment is not required, but you need to provide all of the necessary code, include the code used to create and populate tables.</li>
+</ol>
+<p data-end="651" data-start="631"><strong data-end="651" data-start="631">Task Description</strong></p>
+<ol data-end="900" data-start="652">
+<li data-end="692" data-start="652">
+<p data-end="692" data-start="655">Select <strong data-end="691" data-start="662">six recent popular movies </strong>(or television episodes or books or songs or ...)</p>
+</li>
+<li data-end="778" data-start="693">
+<p data-end="778" data-start="696">Ask <strong data-end="724" data-start="700">at least five people</strong> to rate each movie they have seen on a <strong data-end="777" data-start="764">1–5 scale</strong>.</p>
+</li>
+<li data-end="847" data-start="779">
+<p data-end="847" data-start="782">Store the collected ratings in a <strong data-end="831" data-start="815">SQL database</strong> of your choice.</p>
+</li>
+<li data-end="900" data-start="848">
+<p data-end="900" data-start="851">Load the data from SQL into <strong data-end="884" data-start="879">R</strong> as a dataframe.</p>
+</li>
+</ol>
+<p data-end="926" data-start="902"><strong data-end="926" data-start="902">Implementation Notes</strong></p>
+<ul data-end="1240" data-start="927">
+<li data-end="1008" data-start="927">
+<p data-end="1008" data-start="929">The assignment is intentionally open-ended; multiple approaches are acceptable.</p>
+</li>
+<li data-end="1127" data-start="1009">
+<p data-end="1019" data-start="1011">You may:</p>
+<ul data-end="1127" data-start="1022">
+<li data-end="1070" data-start="1022">
+<p data-end="1070" data-start="1024">Query the SQL database directly from R, <strong data-end="1070" data-start="1064">or</strong></p>
+</li>
+<li data-end="1127" data-start="1073">
+<p data-end="1127" data-start="1075">Export SQL data to a <code data-end="1102" data-start="1096">.csv</code> file and load it into R.</p>
+</li>
+</ul>
+</li>
+<li data-end="1240" data-start="1128">
+<p data-end="1240" data-start="1130">If you use a GUI to create or populate tables, you must also provide the <strong data-end="1215" data-start="1203">SQL code</strong> needed to recreate them.</p>
+</li>
+</ul>
+<p data-end="1261" data-start="1242"><strong data-end="1261" data-start="1242">Reproducibility</strong></p>
+<ul data-end="1455" data-start="1262">
+<li data-end="1348" data-start="1262">
+<p data-end="1348" data-start="1264">Your solution should be reproducible assuming the same SQL server and R environment.</p>
+</li>
+<li data-end="1393" data-start="1349">
+<p data-end="1393" data-start="1351">You may remove or mask database passwords.</p>
+</li>
+<li data-end="1455" data-start="1394">
+<p data-end="1455" data-start="1396">Full reproducibility of survey responses is <em data-end="1445" data-start="1440">not</em> required.</p>
+</li>
+</ul>
+<p data-end="1473" data-start="1457"><strong data-end="1473" data-start="1457">Missing Data</strong></p>
+<ul data-end="1606" data-start="1474">
+<li data-end="1606" data-start="1474">
+<p data-end="1606" data-start="1476">You must demonstrate a <strong data-end="1551" data-start="1499">reasonable strategy for handling missing ratings</strong>, since not all participants will have seen all movies.</p>
+</li>
+</ul>
+<p data-end="1667" data-start="1608"><strong data-end="1633" data-start="1608">Optional Enhancements</strong><br>You may improve your solution by:</p>
+<ul data-end="1856" data-start="1668">
+<li data-end="1710" data-start="1668">
+<p data-end="1710" data-start="1670">Using survey software to collect ratings</p>
+</li>
+<li data-end="1751" data-start="1711">
+<p data-end="1751" data-start="1713">Managing database credentials securely</p>
+</li>
+<li data-end="1796" data-start="1752">
+<p data-end="1796" data-start="1754">Designing a <strong data-end="1796" data-start="1766">normalized database schema</strong></p>
+</li>
+<li data-end="1856" data-start="1797">
+<p data-end="1856" data-start="1799">Exploring whether <strong data-end="1842" data-start="1817">standardizing ratings</strong> is beneficial</p>
+</li>
+</ul>
+<p data-end="1885" data-start="1858"><strong data-end="1885" data-start="1858">Submission Requirements</strong></p>
+<ul data-end="2109" data-start="1886">
+<li data-end="1956" data-start="1886">
+<p data-end="1956" data-start="1888">Post all code (SQL, R, Quarto) in a&nbsp;<strong data-end="1956" data-start="1935">GitHub repository</strong></p>
+</li>
+<li data-end="1981" data-start="1957">
+<p data-end="1981" data-start="1959">Submit the GitHub link</p>
+</li>
+<li data-end="2019" data-start="1982">
+<p data-end="2019" data-start="1984">RPubs publication is <em data-end="2019" data-start="2005">not required</em></p>
+</li>
+<li data-end="2109" data-start="2020">
+<p data-end="2109" data-start="2022">Group work is allowed, but each student must submit individually and list collaborators</p>
+</li>
+</ul>
+<p data-end="2206" data-start="2111"><strong data-end="2139" data-start="2111">Professional Expectation</strong><br>Treat this as portfolio-quality work suitable for a job interview.</p>
+<p data-end="2351" data-start="2279"></p>
+<h2 data-end="2444" data-start="2358"></h2>
+<h2 data-end="2444" data-start="2358">2. Optional Instructions to Make This Easier for Students New to SQL and Recommender Systems</h2>
+<h3 data-end="2481" data-start="2446">A. Suggested Conceptual Roadmap</h3>
+<p data-end="2574" data-start="2483">Consider approaching the assignment in&nbsp;<strong data-end="2573" data-start="2557">three layers</strong>:</p>
+<ol data-end="3350" data-start="2576">
+<li data-end="2792" data-start="2576">
+<p data-end="2616" data-start="2579"><strong data-end="2616" data-start="2579">Data Collection (Problem Framing)</strong></p>
+<ul data-end="2792" data-start="2620">
+<li data-end="2674" data-start="2620">
+<p data-end="2674" data-start="2622">Think of this as a <em data-end="2673" data-start="2641">mini user-item ratings dataset</em>.</p>
+</li>
+<li data-end="2707" data-start="2678">
+<p data-end="2707" data-start="2680">Users = people you survey</p>
+</li>
+<li data-end="2729" data-start="2711">
+<p data-end="2729" data-start="2713">Items = movies</p>
+</li>
+<li data-end="2792" data-start="2733">
+<p data-end="2792" data-start="2735">Ratings = integers from 1–5 (with missing values allowed)</p>
+</li>
+</ul>
+</li>
+<li data-end="3104" data-start="2794">
+<p data-end="2832" data-start="2797"><strong data-end="2832" data-start="2797">Data Storage (SQL Fundamentals)</strong></p>
+<ul data-end="3104" data-start="2836">
+<li data-end="2989" data-start="2836">
+<p data-end="2882" data-start="2838">Start with <strong data-end="2872" data-start="2849">two or three tables</strong>, not one:</p>
+<ul data-end="2989" data-start="2888">
+<li data-end="2912" data-start="2888">
+<p data-end="2912" data-start="2890"><code data-end="2912" data-start="2890">users(user_id, name)</code></p>
+</li>
+<li data-end="2945" data-start="2918">
+<p data-end="2945" data-start="2920"><code data-end="2945" data-start="2920">movies(movie_id, title)</code></p>
+</li>
+<li data-end="2989" data-start="2951">
+<p data-end="2989" data-start="2953"><code data-end="2989" data-start="2953">ratings(user_id, movie_id, rating)</code></p>
+</li>
+</ul>
+</li>
+<li data-end="3104" data-start="2993">
+<p data-end="3001" data-start="2995">Learn:</p>
+<ul data-end="3104" data-start="3007">
+<li data-end="3021" data-start="3007">
+<p data-end="3021" data-start="3009">Primary keys</p>
+</li>
+<li data-end="3041" data-start="3027">
+<p data-end="3041" data-start="3029">Foreign keys</p>
+</li>
+<li data-end="3104" data-start="3047">
+<p data-end="3104" data-start="3049">Why many-to-many relationships require a junction table</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li data-end="3350" data-start="3106">
+<p data-end="3143" data-start="3109"><strong data-end="3143" data-start="3109">Data Analysis (R Fundamentals)</strong></p>
+<ul data-end="3350" data-start="3147">
+<li data-end="3263" data-start="3147">
+<p data-end="3169" data-start="3149">Use R primarily for:</p>
+<ul data-end="3263" data-start="3175">
+<li data-end="3192" data-start="3175">
+<p data-end="3192" data-start="3177">Data inspection</p>
+</li>
+<li data-end="3223" data-start="3198">
+<p data-end="3223" data-start="3200">Cleaning missing values</p>
+</li>
+<li data-end="3263" data-start="3229">
+<p data-end="3263" data-start="3231">Simple summaries (means, counts)</p>
+</li>
+</ul>
+</li>
+<li data-end="3350" data-start="3267">
+<p data-end="3350" data-start="3269">At this stage, you are <em data-end="3297" data-start="3292">not</em> building a full recommender—only preparing the data.</p>
+</li>
+</ul>
+</li>
+</ol>
+<h3 data-end="3385" data-start="3352">B. Concrete Starter Checklist</h3>
+<p data-end="3394" data-start="3387"><strong data-end="3394" data-start="3387">SQL</strong></p>
+<ul data-end="3548" data-start="3395">
+<li data-end="3431" data-start="3395">
+<p data-end="3431" data-start="3397">Create tables using <code data-end="3431" data-start="3417">CREATE TABLE</code></p>
+</li>
+<li data-end="3465" data-start="3432">
+<p data-end="3465" data-start="3434">Insert data using <code data-end="3465" data-start="3452">INSERT INTO</code></p>
+</li>
+<li data-end="3510" data-start="3466">
+<p data-end="3510" data-start="3468">Use <code data-end="3480" data-start="3472">SELECT</code> with <code data-end="3492" data-start="3486">JOIN</code> to combine tables</p>
+</li>
+<li data-end="3548" data-start="3511">
+<p data-end="3548" data-start="3513">Verify missing ratings using <code data-end="3548" data-start="3542">NULL</code></p>
+</li>
+</ul>
+<p data-end="3555" data-start="3550"><strong data-end="3555" data-start="3550">R</strong></p>
+<ul data-end="3736" data-start="3556">
+<li data-end="3610" data-start="3556">
+<p data-end="3610" data-start="3558">Use <code data-end="3567" data-start="3562">DBI</code> / <code data-end="3579" data-start="3570">RSQLite</code> or <code data-end="3594" data-start="3583">RPostgres</code> <em data-end="3599" data-start="3595">or</em> read a CSV</p>
+</li>
+<li data-end="3653" data-start="3611">
+<p data-end="3653" data-start="3613">Convert SQL output into a tidy dataframe</p>
+</li>
+<li data-end="3736" data-start="3654">
+<p data-end="3671" data-start="3656">Use <code data-end="3667" data-start="3660">dplyr</code> to:</p>
+<ul data-end="3736" data-start="3674">
+<li data-end="3708" data-start="3674">
+<p data-end="3708" data-start="3676">Count ratings per user and movie</p>
+</li>
+<li data-end="3736" data-start="3711">
+<p data-end="3736" data-start="3713">Compute average ratings</p>
+</li>
+</ul>
+</li>
+</ul>
+<p data-end="3779" data-start="3738"><strong data-end="3779" data-start="3738">Recommender Systems (Conceptual Only)</strong></p>
+<ul data-end="3936" data-start="3780">
+<li data-end="3894" data-start="3780">
+<p data-end="3821" data-start="3782">Understand that this dataset resembles:</p>
+<ul data-end="3894" data-start="3824">
+<li data-end="3848" data-start="3824">
+<p data-end="3848" data-start="3826">A <strong data-end="3848" data-start="3828">user–item matrix</strong></p>
+</li>
+<li data-end="3894" data-start="3851">
+<p data-end="3894" data-start="3853">The raw input for collaborative filtering</p>
+</li>
+</ul>
+</li>
+<li data-end="3936" data-start="3895">
+<p data-end="3936" data-start="3897">No advanced algorithms are required yet</p>
+</li>
+</ul></body></html>

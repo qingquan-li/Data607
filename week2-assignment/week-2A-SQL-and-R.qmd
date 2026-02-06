@@ -1,0 +1,10 @@
+---
+title: "week-2A-SQL-and-R"
+format: html
+---
+
+# Approach
+
+I will collect a small movie-ratings dataset by selecting six recent popular movies and asking at least five people to rate the movies they’ve seen on a 1–5 scale. I will store the results in a PostgreSQL database, using a simple schema (3 tables: users, movies, ratings with primary keys and foreign keys) and SQL scripts to create/populate the tables. Then I will load the ratings into R as a dataframe (either by querying the database from R or exporting to CSV first) and produce basic summaries such as average ratings by movie and counts of ratings per user/movie.
+
+The main data challenge I anticipate is missing ratings, since not everyone will have seen every movie. I will handle this explicitly, for example, represent missing ratings as NULL in SQL, and decide whether to exclude missing values from averages or impute a reasonable placeholder depending on the metric.

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html><head><link rel="stylesheet" href="https://s.brightspace.com/lib/fonts/0.6.1/fonts.css"></head><body style="color: rgb(32, 33, 34); font-family: Lato, sans-serif; font-size: 19px;"><h3 data-end="314" data-start="255">Assignment: Evaluating Classification Model Performance</h3>
+<p data-end="478" data-start="316"><strong data-end="329" data-start="316">Objective</strong><br data-end="332" data-start="329">Analyze the performance of a <strong data-end="392" data-start="361">binary classification model</strong> and develop intuition for how probability thresholds affect model evaluation metrics.</p>
+<p data-end="553" data-start="480"><strong data-end="489" data-start="480">Setup</strong><br>Download the following files from the course GitHub repository:</p>
+<ul data-end="659" data-start="554">
+<li data-end="581" data-start="554"><code data-end="581" data-start="556"></code><a href="https://github.com/acatlin/data/blob/master/Performance%20Metrics%20for%20Classification%20problems%20in%20Machine%20Learning.pdf" target="_blank" rel="noopener"><em data-end="653" data-start="584">Performance Metrics for Classification Problems in Machine Learning</em></a> (PDF) - <em><strong>Read this first if you're new to classification problems!</strong></em></li>
+<li data-end="581" data-start="554"><code data-end="581" data-start="556"></code><code data-end="581" data-start="556"><a href="https://raw.githubusercontent.com/acatlin/data/refs/heads/master/penguin_predictions.csv" target="_blank" rel="noopener">penguin_predictions.csv</a></code></li>
+</ul>
+<p data-end="720" data-start="661"><strong data-end="684" data-start="661">Dataset Description</strong><br>The dataset contains three columns:</p>
+<ul data-end="971" data-start="721">
+<li data-end="824" data-start="721">
+<p data-end="824" data-start="723"><strong data-end="741" data-start="723"><code data-end="739" data-start="725">.pred_female</code></strong> – Model-predicted probability that the observation belongs to the “female” class</p>
+</li>
+<li data-end="911" data-start="825">
+<p data-end="911" data-start="827"><strong data-end="844" data-start="827"><code data-end="842" data-start="829">.pred_class</code></strong> – Predicted class label (1 if <code data-end="895" data-start="875">.pred_female &gt; 0.5</code>, otherwise 0)</p>
+</li>
+<li data-end="971" data-start="912">
+<p data-end="971" data-start="914"><strong data-end="923" data-start="914"><code data-end="921" data-start="916">sex</code></strong> – Actual class label used during model training</p>
+</li>
+</ul>
+<p data-end="982" data-start="973"><strong data-end="982" data-start="973">Tasks</strong></p>
+<ol data-end="1909" data-start="984">
+<li data-end="1225" data-start="984">
+<p data-end="1006" data-start="987"><strong data-end="1006" data-start="987">Null Error Rate</strong></p>
+<ul data-end="1225" data-start="1010">
+<li data-end="1070" data-start="1010">
+<p data-end="1070" data-start="1012">Calculate the null error rate (majority-class error rate).</p>
+</li>
+<li data-end="1143" data-start="1074">
+<p data-end="1143" data-start="1076">Create a plot showing the distribution of the actual class (<code data-end="1141" data-start="1136">sex</code>).</p>
+</li>
+<li data-end="1225" data-start="1147">
+<p data-end="1225" data-start="1149">Explain why knowing the null error rate is important when evaluating models.</p>
+</li>
+</ul>
+</li>
+<li data-end="1579" data-start="1227">
+<p data-end="1275" data-start="1230"><strong data-end="1275" data-start="1230">Confusion Matrices at Multiple Thresholds</strong></p>
+<ul data-end="1579" data-start="1279">
+<li data-end="1462" data-start="1279">
+<p data-end="1352" data-start="1281">Using probability thresholds of <strong data-end="1320" data-start="1313">0.2</strong>, <strong data-end="1329" data-start="1322">0.5</strong>, and <strong data-end="1342" data-start="1335">0.8</strong>, compute:</p>
+<ul data-end="1462" data-start="1358">
+<li data-end="1379" data-start="1358">
+<p data-end="1379" data-start="1360">True Positives (TP)</p>
+</li>
+<li data-end="1407" data-start="1385">
+<p data-end="1407" data-start="1387">False Positives (FP)</p>
+</li>
+<li data-end="1434" data-start="1413">
+<p data-end="1434" data-start="1415">True Negatives (TN)</p>
+</li>
+<li data-end="1462" data-start="1440">
+<p data-end="1462" data-start="1442">False Negatives (FN)</p>
+</li>
+</ul>
+</li>
+<li data-end="1516" data-start="1466">
+<p data-end="1516" data-start="1468">Present results as <strong data-end="1515" data-start="1487">three confusion matrices</strong>.</p>
+</li>
+<li data-end="1579" data-start="1520">
+<p data-end="1579" data-start="1522">You may compute these manually or use existing functions.</p>
+</li>
+</ul>
+</li>
+<li data-end="1745" data-start="1581">
+<p data-end="1607" data-start="1584"><strong data-end="1607" data-start="1584">Performance Metrics</strong></p>
+<ul data-end="1745" data-start="1611">
+<li data-end="1706" data-start="1611">
+<p data-end="1643" data-start="1613">For each threshold, calculate:</p>
+<ul data-end="1706" data-start="1649">
+<li data-end="1659" data-start="1649">
+<p data-end="1659" data-start="1651">Accuracy</p>
+</li>
+<li data-end="1676" data-start="1665">
+<p data-end="1676" data-start="1667">Precision</p>
+</li>
+<li data-end="1690" data-start="1682">
+<p data-end="1690" data-start="1684">Recall</p>
+</li>
+<li data-end="1706" data-start="1696">
+<p data-end="1706" data-start="1698">F1 score</p>
+</li>
+</ul>
+</li>
+<li data-end="1745" data-start="1710">
+<p data-end="1745" data-start="1712">Present results in a clear table.</p>
+</li>
+</ul>
+</li>
+<li data-end="1909" data-start="1747">
+<p data-end="1773" data-start="1750"><strong data-end="1773" data-start="1750">Threshold Use Cases</strong></p>
+<ul data-end="1909" data-start="1777">
+<li data-end="1909" data-start="1777">
+<p data-end="1827" data-start="1779">Describe at least one real-world scenario where:</p>
+<ul data-end="1909" data-start="1833">
+<li data-end="1868" data-start="1833">
+<p data-end="1868" data-start="1835">A <strong data-end="1854" data-start="1837">0.2 threshold</strong> is preferable</p>
+</li>
+<li data-end="1909" data-start="1874">
+<p data-end="1909" data-start="1876">A <strong data-end="1895" data-start="1878">0.8 threshold</strong> is preferable</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p data-end="1939" data-start="1911"><strong data-end="1939" data-start="1911">Collaboration &amp; Due Date</strong></p>
+<ul data-end="2029" data-start="1940">
+<li data-end="1988" data-start="1940">
+<p data-end="1988" data-start="1942">You may work individually or in a small group.</p>
+</li>
+</ul>
+<hr data-end="2034" data-start="2031">
+<h2 data-end="2118" data-start="2036">2. Optional: Additional Instructions&nbsp;</h2>
+<h3 data-end="2145" data-start="2120">A. Conceptual Roadmap</h3>
+<p data-end="2231" data-start="2147">Students new to machine learning should approach this assignment in <strong data-end="2230" data-start="2215">four layers</strong>:</p>
+<ol data-end="2962" data-start="2233">
+<li data-end="2453" data-start="2233">
+<p data-end="2268" data-start="2236"><strong data-end="2268" data-start="2236">Binary Classification Basics</strong></p>
+<ul data-end="2453" data-start="2272">
+<li data-end="2326" data-start="2272">
+<p data-end="2326" data-start="2274">The model predicts <em data-end="2308" data-start="2293">probabilities</em>, not just labels.</p>
+</li>
+<li data-end="2392" data-start="2330">
+<p data-end="2392" data-start="2332">A <strong data-end="2347" data-start="2334">threshold</strong> converts probabilities into class decisions.</p>
+</li>
+<li data-end="2453" data-start="2396">
+<p data-end="2453" data-start="2398">Changing the threshold changes what counts as an error.</p>
+</li>
+</ul>
+</li>
+<li data-end="2632" data-start="2455">
+<p data-end="2497" data-start="2458"><strong data-end="2497" data-start="2458">Baseline Thinking (Null Error Rate)</strong></p>
+<ul data-end="2632" data-start="2501">
+<li data-end="2564" data-start="2501">
+<p data-end="2564" data-start="2503">The null model predicts the <strong data-end="2563" data-start="2531">most common class every time</strong>.</p>
+</li>
+<li data-end="2632" data-start="2568">
+<p data-end="2632" data-start="2570">Any real model must outperform this baseline to be meaningful.</p>
+</li>
+</ul>
+</li>
+<li data-end="2785" data-start="2634">
+<p data-end="2676" data-start="2637"><strong data-end="2676" data-start="2637">Confusion Matrix as the Core Object</strong></p>
+<ul data-end="2785" data-start="2680">
+<li data-end="2719" data-start="2680">
+<p data-end="2719" data-start="2682">Everything flows from TP, FP, TN, FN.</p>
+</li>
+<li data-end="2785" data-start="2723">
+<p data-end="2785" data-start="2725">Metrics like accuracy and F1 are <em data-end="2767" data-start="2758">derived</em>, not fundamental.</p>
+</li>
+</ul>
+</li>
+<li data-end="2962" data-start="2787">
+<p data-end="2813" data-start="2790"><strong data-end="2813" data-start="2790">Threshold Tradeoffs</strong></p>
+<ul data-end="2962" data-start="2817">
+<li data-end="2861" data-start="2817">
+<p data-end="2861" data-start="2819">Lower threshold → more positives predicted</p>
+</li>
+<li data-end="2911" data-start="2865">
+<p data-end="2911" data-start="2867">Higher threshold → fewer positives predicted</p>
+</li>
+<li data-end="2962" data-start="2915">
+<p data-end="2962" data-start="2917">There is no “best” threshold without context.</p>
+</li>
+</ul>
+</li>
+</ol>
+<h3 data-end="3002" data-start="2964">B. Practical Step-by-Step Guidance</h3>
+<p data-end="3032" data-start="3004"><strong data-end="3032" data-start="3004">Step 1: Explore the Data</strong></p>
+<ul data-end="3126" data-start="3033">
+<li data-end="3072" data-start="3033">
+<p data-end="3072" data-start="3035">Inspect class balance (<code data-end="3070" data-start="3058">count(sex)</code>).</p>
+</li>
+<li data-end="3126" data-start="3073">
+<p data-end="3126" data-start="3075">Plot the actual class distribution of the target variable using&nbsp;<code data-end="3125" data-start="3116">ggplot2</code>.&nbsp; Below is an example from a different dataset.&nbsp; Can you do better?</p>
+</li>
+<li data-end="3126" data-start="3073"><img src="https://brightspace.cuny.edu/content/enforced/1154240-SPS01_DATA_607_1262_1_32167/class_imbalance.png?ou=1154240" alt="Class Distribution of the Target Variable" title="Class Distribution of the Target Variable" width="650" height="460"></li>
+</ul>
+<p data-end="3171" data-start="3128"><strong data-end="3171" data-start="3128">Step 2: Understand Probability vs Class</strong></p>
+<ul data-end="3303" data-start="3172">
+<li data-end="3205" data-start="3172">
+<p data-end="3205" data-start="3174">Ignore <code data-end="3194" data-start="3181">.pred_class</code> initially.</p>
+</li>
+<li data-end="3303" data-start="3206">
+<p data-end="3249" data-start="3208">Recompute predicted class yourself using:</p>
+<div>
+<div>
+<div>
+<div></div>
+</div>
+</div>
+<div dir="ltr"><code>ifelse(.pred_female &gt; threshold, 1, 0)
+</code></div>
+</div>
+</li>
+</ul>
+<p data-end="3350" data-start="3305"><strong data-end="3350" data-start="3305">Step 3: Build Confusion Matrices Manually</strong></p>
+<ul data-end="3438" data-start="3351">
+<li data-end="3398" data-start="3351">
+<p data-end="3398" data-start="3353">Create logical conditions for TP, FP, TN, FN.</p>
+</li>
+<li data-end="3438" data-start="3399">
+<p data-end="3438" data-start="3401">Count rows satisfying each condition.</p>
+</li>
+</ul>
+<p data-end="3466" data-start="3440"><strong data-end="3466" data-start="3440">Step 4: Derive Metrics</strong></p>
+<ul data-end="3597" data-start="3467">
+<li data-end="3497" data-start="3467">
+<p data-end="3497" data-start="3469">Accuracy = (TP + TN) / total</p>
+</li>
+<li data-end="3526" data-start="3498">
+<p data-end="3526" data-start="3500">Precision = TP / (TP + FP)</p>
+</li>
+<li data-end="3552" data-start="3527">
+<p data-end="3552" data-start="3529">Recall = TP / (TP + FN)</p>
+</li>
+<li data-end="3597" data-start="3553">
+<p data-end="3597" data-start="3555">F1 = harmonic mean of precision and recall</p>
+</li>
+</ul>
+<p data-end="3680" data-start="3599">This sequencing prevents the assignment from feeling like “formula memorization.”</p></body></html>

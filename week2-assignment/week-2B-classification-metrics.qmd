@@ -1,0 +1,10 @@
+---
+title: "week-2B-classification-metrics"
+format: html
+---
+
+## Approach
+
+For this assignment, I will use the provided [penguin_predictions.csv](https://raw.githubusercontent.com/acatlin/data/refs/heads/master/penguin_predictions.csv) dataset, which includes the model’s predicted probability of “female” (`.pred_female`), an existing predicted class label (`.pred_class`), and the true label (`sex`). I’ll start by answering the baseline question: compute the null error rate (majority-class error rate) and visualize the class distribution of `sex`. Then I’ll recompute predicted classes myself at thresholds 0.2, 0.5, and 0.8, build three confusion matrices (TP/FP/TN/FN), and calculate accuracy, precision, recall, and F1 for each threshold in a clear comparison table, finishing with short real-world examples of when a low vs high threshold is preferable.
+
+The main challenges I anticipate are (1) being careful about what counts as the positive class (“female” = 1) and making sure TP/FP/TN/FN are counted consistently across thresholds, and (2) interpreting how metrics change as the threshold shifts (lower threshold → more predicted positives; higher threshold → fewer). I’ll mitigate these by explicitly defining the conditions for TP/FP/TN/FN, double-checking totals add up to the dataset size, and validating that changing the threshold changes predictions in the expected direction before I report the final confusion matrices and metric table.
