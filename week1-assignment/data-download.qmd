@@ -1,0 +1,29 @@
+---
+title: "data-download"
+author: "Qingquan Li"
+format: html
+---
+
+# Prompt for GPT
+I was able to use yfinance (a Python library) to download VOO (Vanguard S&P 500 ETF) data into a CSV file. Does R have a similar library that could do the same thing? If so, how can I download the VOO data and save it into a CSV file with R?
+
+# Download and save data
+
+```{r}
+library(tidyquant)
+library(readr)
+```
+
+```{r}
+voo <- tq_get("VOO", get = "stock.prices",
+              from = "2016-01-01",
+              to   = "2025-12-31")
+
+# Create folder if it doesn't exist
+dir.create("data", showWarnings = FALSE)
+
+# Save to CSV
+write_csv(voo, "data/voo_10y.csv")
+
+file.exists("data/voo_10y.csv")
+```

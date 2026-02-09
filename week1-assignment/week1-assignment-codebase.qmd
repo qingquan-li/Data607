@@ -16,7 +16,7 @@ For this deliverable, I will use VOO (Vanguard S&P 500 ETF) historical daily pri
 
 ## Business question → data question
 
-**Business question:** “How has VOO performed over time, and what is its annual rate of return?”  
+**Business question:** “How has VOO performed over time, and what is its annual rate of return?”\
 **Data question:** “Using historical prices, what is the return for each calendar year, and what is the annualized return over the full period?”
 
 ## Step 1 — Load the data
@@ -39,11 +39,7 @@ glimpse(voo_raw)
 
 ## Step 2 — Clean and standardize
 
-Workflow notes:
-- Convert `Date` into a proper date type
-- Ensure rows are sorted by date
-- Filter to `Ticker == "VOO"` (if the file contains multiple tickers)
-- Keep **Adj Close** as the price series for returns (adjusted for dividends/splits)
+Workflow notes: - Convert `Date` into a proper date type - Ensure rows are sorted by date - Filter to `Ticker == "VOO"` (if the file contains multiple tickers) - Keep **Adj Close** as the price series for returns (adjusted for dividends/splits)
 
 ```{r}
 voo <- voo_raw %>%
@@ -54,12 +50,13 @@ voo <- voo_raw %>%
   select(date, open, high, low, close, adj_close, volume, ticker)
 
 summary(voo$date)
+
+glimpse(voo)
 ```
 
 ## Step 3 — Compute annual returns (calendar year)
 
-Definition used here:
-- **Annual return (year Y)** = (last Adj Close in Y / first Adj Close in Y) − 1
+Definition used here: - **Annual return (year Y)** = (last Adj Close in Y / first Adj Close in Y) − 1
 
 ```{r}
 annual_returns <- voo %>%
@@ -85,7 +82,7 @@ annual_returns %>%
 
 This answers: “If VOO grew at a constant rate each year over the sample, what would that annual rate be?”
 
-- **CAGR** = (ending Adj Close / starting Adj Close) ^ (1 / years) − 1
+-   **CAGR** = (ending Adj Close / starting Adj Close) \^ (1 / years) − 1
 
 ```{r}
 start_price <- first(voo$adj_close)
