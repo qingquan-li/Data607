@@ -8,3 +8,253 @@ format: html
 I will collect a small movie-ratings dataset by selecting six recent popular movies and asking at least five people to rate the movies they’ve seen on a 1–5 scale. I will store the results in a PostgreSQL database, using a simple schema (3 tables: users, movies, ratings with primary keys and foreign keys) and SQL scripts to create/populate the tables. Then I will load the ratings into R as a dataframe (either by querying the database from R or exporting to CSV first) and produce basic summaries such as average ratings by movie and counts of ratings per user/movie.
 
 The main data challenge I anticipate is missing ratings, since not everyone will have seen every movie. I will handle this explicitly, for example, represent missing ratings as NULL in SQL, and decide whether to exclude missing values from averages or impute a reasonable placeholder depending on the metric.
+
+# 6 recent popular movies
+
+1.  Dune: Part Two (2024)
+2.  Barbie (2023)
+3.  Oppenheimer (2023)
+4.  Killers of the Flower Moon (2023)
+5.  The Batman (2022)
+6.  Spider-Man: Across the Spider-Verse (2023)
+
+# Setup PostgreSQL database tables/data
+
+## Create database
+
+```sql
+CREATE DATABASE movie_ratings;
+
+-- Connect to it
+\c movie_ratings
+```
+
+## Create tables
+
+```sql
+CREATE TABLE people (
+  person_id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE movies (
+  movie_id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL UNIQUE,
+  release_year INT NOT NULL
+);
+
+CREATE TABLE ratings (
+  rating_id SERIAL PRIMARY KEY,
+  person_id INT NOT NULL REFERENCES people(person_id),
+  movie_id  INT NOT NULL REFERENCES movies(movie_id),
+  rating INT NULL CHECK (rating BETWEEN 1 AND 5),
+  UNIQUE (person_id, movie_id)
+);
+```
+
+## Insert people and movies
+
+```sql
+INSERT INTO people (name) VALUES
+('Jacob'),
+('Alice'),
+('Ben'),
+('Chloe'),
+('David');
+
+INSERT INTO movies (title, release_year) VALUES
+('Dune: Part Two', 2024),
+('Barbie', 2023),
+('Oppenheimer', 2023),
+('Killers of the Flower Moon', 2023),
+('The Batman', 2022),
+('Spider-Man: Across the Spider-Verse', 2023);
+```
+
+## Insert ratings with missing ratings as `NULL`
+
+```sql
+-- Jacob
+INSERT INTO ratings (person_id, movie_id, rating)
+SELECT p.person_id, m.movie_id, r.rating
+FROM (VALUES
+  ('Jacob','Dune: Part Two',5),
+  ('Jacob','Barbie',4),
+  ('Jacob','Oppenheimer',5),
+  ('Jacob','Killers of the Flower Moon',NULL),
+  ('Jacob','The Batman',4),
+  ('Jacob','Spider-Man: Across the Spider-Verse',5)
+) AS r(name,title,rating)
+JOIN people p ON p.name = r.name
+JOIN movies m ON m.title = r.title;
+
+-- Alice
+INSERT INTO ratings (person_id, movie_id, rating)
+SELECT p.person_id, m.movie_id, r.rating
+FROM (VALUES
+  ('Alice','Dune: Part Two',4),
+  ('Alice','Barbie',5),
+  ('Alice','Oppenheimer',4),
+  ('Alice','Killers of the Flower Moon',3),
+  ('Alice','The Batman',NULL),
+  ('Alice','Spider-Man: Across the Spider-Verse',5)
+) AS r(name,title,rating)
+JOIN people p ON p.name = r.name
+JOIN movies m ON m.title = r.title;
+
+-- Ben
+INSERT INTO ratings (person_id, movie_id, rating)
+SELECT p.person_id, m.movie_id, r.rating
+FROM (VALUES
+  ('Ben','Dune: Part Two',5),
+  ('Ben','Barbie',3),
+  ('Ben','Oppenheimer',5),
+  ('Ben','Killers of the Flower Moon',4),
+  ('Ben','The Batman',4),
+  ('Ben','Spider-Man: Across the Spider-Verse',NULL)
+) AS r(name,title,rating)
+JOIN people p ON p.name = r.name
+JOIN movies m ON m.title = r.title;
+
+-- Chloe
+INSERT INTO ratings (person_id, movie_id, rating)
+SELECT p.person_id, m.movie_id, r.rating
+FROM (VALUES
+  ('Chloe','Dune: Part Two',NULL),
+  ('Chloe','Barbie',5),
+  ('Chloe','Oppenheimer',4),
+  ('Chloe','Killers of the Flower Moon',NULL),
+  ('Chloe','The Batman',5),
+  ('Chloe','Spider-Man: Across the Spider-Verse',5)
+) AS r(name,title,rating)
+JOIN people p ON p.name = r.name
+JOIN movies m ON m.title = r.title;
+
+-- David
+INSERT INTO ratings (person_id, movie_id, rating)
+SELECT p.person_id, m.movie_id, r.rating
+FROM (VALUES
+  ('David','Dune: Part Two',4),
+  ('David','Barbie',4),
+  ('David','Oppenheimer',NULL),
+  ('David','Killers of the Flower Moon',4),
+  ('David','The Batman',3),
+  ('David','Spider-Man: Across the Spider-Verse',4)
+) AS r(name,title,rating)
+JOIN people p ON p.name = r.name
+JOIN movies m ON m.title = r.title;
+```
+
+## Quick SQL check
+
+```sql
+SELECT
+  m.title,
+  COUNT(r.rating) AS n_ratings,            -- counts non-NULL ratings
+  ROUND(AVG(r.rating)::numeric, 2) AS avg_rating
+FROM movies m
+LEFT JOIN ratings r ON r.movie_id = m.movie_id
+GROUP BY m.title
+ORDER BY avg_rating DESC NULLS LAST;
+```
+
+Output:
+```
+                title                | n_ratings | avg_rating 
+-------------------------------------+-----------+------------
+ Spider-Man: Across the Spider-Verse |         4 |       4.75
+ Dune: Part Two                      |         4 |       4.50
+ Oppenheimer                         |         4 |       4.50
+ Barbie                              |         5 |       4.20
+ The Batman                          |         4 |       4.00
+ Killers of the Flower Moon          |         3 |       3.67
+(6 rows)
+```
+
+# Load data from PostgreSQL into a dataframe
+
+## Install packages (run in RStudio Console)
+
+```
+install.packages(c("DBI", "RPostgres", "dplyr", "tidyr", "ggplot2"))
+```
+
+## Connect safely (password in environment variable)
+
+In the terminal:
+
+```bash
+export PGPASSWORD='PostgreSQL_PASSWORD'
+```
+
+```{r}
+library(DBI)
+library(RPostgres)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+con <- dbConnect(
+  RPostgres::Postgres(),
+  dbname = "movie_ratings",
+  host = "localhost",
+  port = 5432,
+  user = "postgres"
+)
+```
+## Load ratings into R
+
+```{r}
+query <- "
+SELECT
+  p.name,
+  m.title,
+  m.release_year,
+  r.rating
+FROM ratings r
+JOIN people p ON p.person_id = r.person_id
+JOIN movies m ON m.movie_id = r.movie_id
+ORDER BY m.title, p.name;
+"
+
+df <- dbGetQuery(con, query)
+df |> head()
+```
+
+# Handle missing data + analysis
+
+Missing-data strategy:  
+- In SQL we stored “not seen / not rated” as `NULL`  
+- In R, those become `NA`  
+- For averages, we ignore `NA` using `na.rm = TRUE`  
+- Report how many people rated each movie so averages aren’t misleading  
+
+## Movie summary table
+
+```{r}
+movie_summary <- df |>
+  group_by(title, release_year) |>
+  summarise(
+    n_possible = n(),                 # total people rows per movie (should be 5 here)
+    n_rated = sum(!is.na(rating)),    # how many actually rated
+    avg_rating = mean(rating, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(desc(avg_rating))
+
+movie_summary
+```
+
+## Simple visualization
+
+```{r}
+ggplot(movie_summary, aes(x = reorder(title, avg_rating), y = avg_rating)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Average Rating by Movie (ignoring missing ratings)",
+    x = "Movie",
+    y = "Average rating (1–5)"
+  )
+```
+
