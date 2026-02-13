@@ -1,0 +1,11 @@
+---
+title: "3b-window-functions"
+format: html
+---
+
+# Approach
+
+To practice Window Functions (in SQL), I will use a cryptocurrency time-series dataset with daily end-of-day prices for at least two coins (e.g., BTC-USD and ETH-USD) starting from January 1, 2022. I will store the data in a SQL table with columns such as date, symbol, and close_price, ensuring one row per (date, symbol). Then I will write SQL queries using window functions partitioned by symbol and ordered by date to compute:\
+1. the year-to-date (YTD) average close price for each date (resetting at the start of each calendar year),\
+2. a 6-day moving average using a rolling window (the last 6 dates for each coin).\
+I will export or query the results into R to verify the calculations and summarize the output in a small table or plot.

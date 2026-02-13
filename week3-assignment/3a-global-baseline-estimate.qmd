@@ -1,0 +1,14 @@
+---
+title: "3a-global-baseline-estimate"
+format: html
+---
+
+# Approach
+
+My goal is to implement a Global Baseline Estimate recommender in R using my movie‐ratings data. I'll start by loading the ratings into a dataframe. Then I'll compute three key components:\
+1. the global mean rating across all observed ratings,\
+2. each user's bias (how a user’s average rating differs from the global mean),\
+3. each movie's bias (how a movie's average rating differs from the global mean).\
+Using the spreadsheet's algorithm, I will predict an unseen rating with `predicted(u, m) = global_mean + user_bias(u) + movie_bias(m)`. Finally, for each user, I will generate predictions for the movies they haven't rated and recommend the movie(s) with the highest predicted score.
+
+The main data challenges will be missing ratings (not everyone watched every movie) and small sample size. I’ll handle missing ratings by excluding `NA` values when computing averages (so they don't distort means). Because the dataset is small, individual outliers can strongly affect user/movie averages, so I'll also sanity-check results (e.g., confirm biases make sense and predicted scores stay within a reasonable range).
