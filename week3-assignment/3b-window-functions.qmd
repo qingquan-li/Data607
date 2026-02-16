@@ -5,7 +5,123 @@ format: html
 
 # Approach
 
-To practice Window Functions (in SQL), I will use a cryptocurrency time-series dataset with daily end-of-day prices for at least two coins (e.g., BTC-USD and ETH-USD) starting from January 1, 2022. I will store the data in a SQL table with columns such as date, symbol, and close_price, ensuring one row per (date, symbol). Then I will write SQL queries using window functions partitioned by symbol and ordered by date to compute:\
+To practice Window Functions (in dplyr), I will use a cryptocurrency time-series dataset with daily end-of-day prices for at least two coins (e.g., BTC-USD and ETH-USD) starting from January 1, 2022. I will store the data in CSV files with columns such as date, symbol, and close_price, ensuring one row per (date, symbol). Then I will write queries using window functions partitioned by symbol and ordered by date to compute:\
 1. the year-to-date (YTD) average close price for each date (resetting at the start of each calendar year),\
 2. a 6-day moving average using a rolling window (the last 6 dates for each coin).\
-I will export or query the results into R to verify the calculations and summarize the output in a small table or plot.
+I will summarize the output in a small table or plot.
+
+# Download BTC + ETH data
+
+I use `tidyquant::tq_get()` to fetch daily prices from Yahoo Finance for multiple symbols.
+
+```{r}
+library(tidyquant)
+library(dplyr)
+library(readr)
+library(lubridate)
+library(slider)
+library(ggplot2)
+
+symbols <- c("BTC-USD", "ETH-USD")
+
+crypto <- tq_get(
+  symbols,
+  get  = "stock.prices",
+  from = "2022-01-01",
+  to   = Sys.Date()
+)
+
+# Save the raw download
+dir.create("data", showWarnings = FALSE)
+write_csv(crypto, "data/crypto_btc_eth_daily.csv")
+
+crypto %>% glimpse()
+crypto %>% count(symbol)
+```
+
+# Window functions in dplyr: YTD average + 6-day moving average
+
+## Year-to-date average (YTD)
+
+To compute a YTD average that restarts each year:
+
+-   create a `year` column from the date
+
+-   group by `symbol` and `year` - apply `cummean(close)` (cumulative mean) within each group
+
+## 6-day moving average
+
+To compute a rolling 6-day moving average for each crypto:
+
+-   group by `symbol`
+
+-   order by date
+
+-   take the mean of the current day and previous 5 days using `slider::slide_dbl(...)`
+
+```{r}
+crypto_windows <- crypto %>%
+  arrange(symbol, date) %>%
+  mutate(year = year(date)) %>%
+  group_by(symbol, year) %>%
+  mutate(
+    ytd_avg_close = cummean(close)
+  ) %>%
+  group_by(symbol) %>%
+  mutate(
+    ma_6_close = slide_dbl(close, mean, .before = 5, .complete = TRUE)
+  ) %>%
+  ungroup()
+
+crypto_windows %>%
+  select(symbol, date, close, ytd_avg_close, ma_6_close) %>%
+  tail(12)
+```
+
+## Save the enriched dataset
+
+```{r}
+write_csv(crypto_windows, "data/crypto_btc_eth_with_windows.csv")
+file.exists("data/crypto_btc_eth_with_windows.csv")
+```
+
+# Quick visual check
+
+A moving average should be smoother than the raw close price.
+
+```{r}
+crypto_windows %>%
+  filter(symbol == "BTC-USD") %>%
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = close, color = "Close"), alpha = 0.6) +
+  geom_line(aes(y = ma_6_close, color = "6-Day MA")) +
+  scale_color_manual(values = c("Close" = "steelblue", "6-Day MA" = "orange")) +
+  labs(
+    title = "BTC-USD: Close vs 6-Day Moving Average",
+    x = "Date",
+    y = "Price (USD)",
+    color = "Series"
+  )
+
+```
+
+```{r}
+crypto_windows %>%
+  filter(symbol == "ETH-USD") %>%
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = close, color = "Close"), alpha = 0.6) +
+  geom_line(aes(y = ma_6_close, color = "6-Day MA")) +
+  scale_color_manual(values = c("Close" = "steelblue", "6-Day MA" = "orange")) +
+  labs(
+    title = "ETH-USD: Close vs 6-Day Moving Average",
+    x = "Date",
+    y = "Price (USD)",
+    color = "Series"
+  )
+```
+
+# Conclusions
+
+Using daily cryptocurrency prices for BTC-USD and ETH-USD since January 1, 2022, I applied window-style operations in dplyr to compute **year-to-date average close prices** and **6-day moving averages** for each symbol. The YTD average provides a running baseline that resets each year, while the 6-day moving average smooths short-term noise and makes trends easier to interpret.
+
+To extend this work, I could compare multiple window sizes (7/14/30 days), compute the same features on daily returns rather than raw prices, and add data-quality checks (duplicates, missing dates, extreme outliers) to ensure rolling calculations are based on a clean and consistent time series.
