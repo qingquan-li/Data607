@@ -3,12 +3,132 @@ title: "3a-global-baseline-estimate"
 format: html
 ---
 
-# Approach
+# Introduction
 
-My goal is to implement a Global Baseline Estimate recommender in R using my movie‐ratings data. I'll start by loading the ratings into a dataframe. Then I'll compute three key components:\
+I use the survey data ([movie-ratings](https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week3-assignment/data/movie_ratings.csv)) to build a simple recommender using the Global Baseline Estimate method. I'll compute three key components:\
 1. the global mean rating across all observed ratings,\
 2. each user's bias (how a user’s average rating differs from the global mean),\
 3. each movie's bias (how a movie's average rating differs from the global mean).\
-Using the spreadsheet's algorithm, I will predict an unseen rating with `predicted(u, m) = global_mean + user_bias(u) + movie_bias(m)`. Finally, for each user, I will generate predictions for the movies they haven't rated and recommend the movie(s) with the highest predicted score.
+Using the spreadsheet's algorithm, I will predict an unseen rating with `predicted(u, m) = global_mean + user_bias(u) + movie_bias(m)`.
 
-The main data challenges will be missing ratings (not everyone watched every movie) and small sample size. I’ll handle missing ratings by excluding `NA` values when computing averages (so they don't distort means). Because the dataset is small, individual outliers can strongly affect user/movie averages, so I'll also sanity-check results (e.g., confirm biases make sense and predicted scores stay within a reasonable range).
+Finally, for each user, I will generate predictions for the movies they haven't rated and recommend the movie(s) with the highest predicted score.
+
+# Body
+
+## Load the ratings data (CSV)
+
+The file `movie_ratings.csv` is a wide “ratings matrix” where rows are people and columns are movies. Missing values mean the person has not seen (or did not rate) the movie.
+
+```{r}
+library(tidyverse)
+
+data_url <- "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week3-assignment/data/movie_ratings.csv"
+
+ratings_wide <- read_csv(data_url, show_col_types = FALSE)
+
+glimpse(ratings_wide)
+ratings_wide
+```
+
+## Reshape to long format
+
+For analysis, it is easier to work in a long format with one row per (user, movie, rating).
+
+```{r}
+ratings_long <- ratings_wide %>%
+  rename(user = Person) %>%
+  pivot_longer(
+    cols = -user,
+    names_to = "movie",
+    values_to = "rating"
+  )
+
+ratings_long %>% sample_n(10)
+```
+
+### Missing data strategy
+
+-   Missing ratings are represented as `NA`.
+-   When computing averages, we exclude `NA` values so they do not distort the mean.
+-   Predictions are generated only for movies a user has not rated (`rating` is `NA`).
+
+```{r}
+ratings_long %>% summarise(
+  total_rows = n(),
+  missing_ratings = sum(is.na(rating)),
+  observed_ratings = sum(!is.na(rating))
+)
+```
+
+## Global Baseline Estimate components
+
+### 1) Global mean rating
+
+This is the average of all observed ratings across all users and movies.
+
+```{r}
+global_mean <- ratings_long %>%
+  summarise(mu = mean(rating, na.rm = TRUE)) %>%
+  pull(mu)
+
+global_mean
+```
+
+### 2) User bias
+
+A user bias measures how a user rates compared to the global mean:
+
+```{r}
+user_bias <- ratings_long %>%
+  group_by(user) %>%
+  summarise(user_avg = mean(rating, na.rm = TRUE), n_ratings = sum(!is.na(rating)), .groups = "drop") %>%
+  mutate(b_user = user_avg - global_mean) %>%
+  arrange(desc(b_user))
+
+user_bias
+```
+
+### 3) Movie bias
+
+A movie bias measures how a movie is rated compared to the global mean:
+
+```{r}
+movie_bias <- ratings_long %>%
+  group_by(movie) %>%
+  summarise(movie_avg = mean(rating, na.rm = TRUE), n_ratings = sum(!is.na(rating)), .groups = "drop") %>%
+  mutate(b_movie = movie_avg - global_mean) %>%
+  arrange(desc(b_movie))
+
+movie_bias
+```
+
+## Predict missing ratings and recommend movies
+
+The Global Baseline Estimate prediction is:
+
+```{r}
+predictions <- ratings_long %>%
+  left_join(user_bias %>% select(user, b_user), by = "user") %>%
+  left_join(movie_bias %>% select(movie, b_movie), by = "movie") %>%
+  mutate(pred_rating = global_mean + b_user + b_movie)
+
+predictions
+```
+
+### Recommendations (top unseen movie per user)
+
+```{r}
+recommendations <- predictions %>%
+  filter(is.na(rating)) %>%                 # only movies the user has NOT rated
+  group_by(user) %>%
+  slice_max(pred_rating, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(user, movie, pred_rating) %>%
+  arrange(desc(pred_rating))
+
+recommendations
+```
+
+# Conclusions
+
+Using the Global Baseline Estimate method, I generated movie recommendations by combining the global average rating with a user bias and a movie bias. This provides a simple baseline recommender that works well with survey data, and it handles missing ratings naturally by predicting only for unseen movies.
