@@ -1,0 +1,30 @@
+---
+title: "project1"
+format: html
+---
+
+# Approach
+
+In this project, I will transform the semi-structured chess tournament text file into a clean CSV table containing:
+
+- Player Name  
+- Player State  
+- Total Points  
+- Player Pre-Rating  
+- Average Pre-Rating of Opponents  
+
+**Planned approach**
+
+1. Read the raw text file line-by-line.  
+2. Remove divider/header lines and group the remaining lines into 3-line "player blocks" (each player appears as 3 lines in the file).  
+3. Parse each block to extract: pair number, name, points, state, and pre-rating.
+4. From the round results line, extract each opponent’s *pair number* (ignoring byes/half-point byes/withdrawals where no opponent number exists).
+5. Join opponent pair numbers back to the players table to get opponents' pre-ratings, then compute the average.
+
+
+**Anticipated data challenges**
+
+- The file is **fixed-width-ish** rather than a clean delimited format, so parsing relies on patterns.  
+- Some rounds contain entries like **H, U, B, X** (half-point bye, unplayed, bye, forfeit) where an opponent number may be missing.  
+- Ratings can include suffixes like **P** (provisional), e.g., `1641P17`, so I need to extract only the numeric rating reliably.  
+
