@@ -187,7 +187,7 @@ The following objects are masked from 'package:base':
 <span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>crypto <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 3,014
+<pre><code>Rows: 3,016
 Columns: 8
 $ symbol   &lt;chr&gt; "BTC-USD", "BTC-USD", "BTC-USD", "BTC-USD", "BTC-USD", "BTC-U…
 $ date     &lt;date&gt; 2022-01-01, 2022-01-02, 2022-01-03, 2022-01-04, 2022-01-05, …
@@ -203,8 +203,8 @@ $ adjusted &lt;dbl&gt; 47686.81, 47345.22, 46458.12, 45897.57, 43569.00, 43160.9
 <pre><code># A tibble: 2 × 2
   symbol      n
   &lt;chr&gt;   &lt;int&gt;
-1 BTC-USD  1507
-2 ETH-USD  1507</code></pre>
+1 BTC-USD  1508
+2 ETH-USD  1508</code></pre>
 </div>
 </div>
 </section>
@@ -247,18 +247,18 @@ $ adjusted &lt;dbl&gt; 47686.81, 47345.22, 46458.12, 45897.57, 43569.00, 43160.9
 <pre><code># A tibble: 12 × 5
    symbol  date       close ytd_avg_close ma_6_close
    &lt;chr&gt;   &lt;date&gt;     &lt;dbl&gt;         &lt;dbl&gt;      &lt;dbl&gt;
- 1 ETH-USD 2026-02-04 2144.         2975.      2355.
- 2 ETH-USD 2026-02-05 1822.         2943.      2208.
- 3 ETH-USD 2026-02-06 2063.         2919.      2145.
- 4 ETH-USD 2026-02-07 2091.         2897.      2115.
- 5 ETH-USD 2026-02-08 2089.         2876.      2073.
- 6 ETH-USD 2026-02-09 2104.         2857.      2052.
- 7 ETH-USD 2026-02-10 2019.         2837.      2031.
- 8 ETH-USD 2026-02-11 1941.         2815.      2051.
- 9 ETH-USD 2026-02-12 1947.         2795.      2032.
-10 ETH-USD 2026-02-13 2049.         2778.      2025.
-11 ETH-USD 2026-02-14 2086.         2763.      2024.
-12 ETH-USD 2026-02-15   NA            NA         NA </code></pre>
+ 1 ETH-USD 2026-02-05 1822.         2943.      2208.
+ 2 ETH-USD 2026-02-06 2063.         2919.      2145.
+ 3 ETH-USD 2026-02-07 2091.         2897.      2115.
+ 4 ETH-USD 2026-02-08 2089.         2876.      2073.
+ 5 ETH-USD 2026-02-09 2104.         2857.      2052.
+ 6 ETH-USD 2026-02-10 2019.         2837.      2031.
+ 7 ETH-USD 2026-02-11 1941.         2815.      2051.
+ 8 ETH-USD 2026-02-12 1947.         2795.      2032.
+ 9 ETH-USD 2026-02-13 2049.         2778.      2025.
+10 ETH-USD 2026-02-14 2086.         2763.      2024.
+11 ETH-USD 2026-02-15 1966.         2745.      2001.
+12 ETH-USD 2026-02-16 1982.         2729.      1995.</code></pre>
 </div>
 </div>
 </section>
@@ -290,11 +290,7 @@ $ adjusted &lt;dbl&gt; 47686.81, 47345.22, 46458.12, 45897.57, 43569.00, 43160.9
 <span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"Series"</span></span>
 <span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Warning: Removed 1 row containing missing values or values outside the scale range
-(`geom_line()`).</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: Removed 6 rows containing missing values or values outside the scale range
+<pre><code>Warning: Removed 5 rows containing missing values or values outside the scale range
 (`geom_line()`).</code></pre>
 </div>
 <div class="cell-output-display">
@@ -306,24 +302,20 @@ $ adjusted &lt;dbl&gt; 47686.81, 47345.22, 46458.12, 45897.57, 43569.00, 43160.9
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>crypto_windows <span class="sc">%&gt;%</span></span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(symbol <span class="sc">==</span> <span class="st">"ETH-USD"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> date)) <span class="sc">+</span></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> close, <span class="at">color =</span> <span class="st">"Close"</span>), <span class="at">alpha =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> ma_6_close, <span class="at">color =</span> <span class="st">"6-Day MA"</span>)) <span class="sc">+</span></span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Close"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>, <span class="st">"6-Day MA"</span> <span class="ot">=</span> <span class="st">"orange"</span>)) <span class="sc">+</span></span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"ETH-USD: Close vs 6-Day Moving Average"</span>,</span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Date"</span>,</span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Price (USD)"</span>,</span>
-<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"Series"</span></span>
-<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>crypto_windows <span class="sc">%&gt;%</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(symbol <span class="sc">==</span> <span class="st">"ETH-USD"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> date)) <span class="sc">+</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> close, <span class="at">color =</span> <span class="st">"Close"</span>), <span class="at">alpha =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> ma_6_close, <span class="at">color =</span> <span class="st">"6-Day MA"</span>)) <span class="sc">+</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Close"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>, <span class="st">"6-Day MA"</span> <span class="ot">=</span> <span class="st">"orange"</span>)) <span class="sc">+</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"ETH-USD: Close vs 6-Day Moving Average"</span>,</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Date"</span>,</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Price (USD)"</span>,</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"Series"</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Warning: Removed 1 row containing missing values or values outside the scale range
-(`geom_line()`).</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: Removed 6 rows containing missing values or values outside the scale range
+<pre><code>Warning: Removed 5 rows containing missing values or values outside the scale range
 (`geom_line()`).</code></pre>
 </div>
 <div class="cell-output-display">
@@ -339,6 +331,51 @@ $ adjusted &lt;dbl&gt; 47686.81, 47345.22, 46458.12, 45897.57, 43569.00, 43160.9
 <h1>Conclusions</h1>
 <p>Using daily cryptocurrency prices for BTC-USD and ETH-USD since January 1, 2022, I applied window-style operations in dplyr to compute <strong>year-to-date average close prices</strong> and <strong>6-day moving averages</strong> for each symbol. The YTD average provides a running baseline that resets each year, while the 6-day moving average smooths short-term noise and makes trends easier to interpret.</p>
 <p>To extend this work, I could compare multiple window sizes (7/14/30 days), compute the same features on daily returns rather than raw prices, and add data-quality checks (duplicates, missing dates, extreme outliers) to ensure rolling calculations are based on a clean and consistent time series.</p>
+<hr>
+</section>
+<section id="optional-30-day-moving-average" class="level1">
+<h1>Optional: 30-day moving average</h1>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>crypto_windows_30 <span class="ot">&lt;-</span> crypto <span class="sc">%&gt;%</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(symbol, date) <span class="sc">%&gt;%</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">year =</span> <span class="fu">year</span>(date)) <span class="sc">%&gt;%</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(symbol, year) <span class="sc">%&gt;%</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">ytd_avg_close =</span> <span class="fu">cummean</span>(close)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(symbol) <span class="sc">%&gt;%</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">ma_30_close =</span> <span class="fu">slide_dbl</span>(close, mean, <span class="at">.before =</span> <span class="dv">29</span>, <span class="at">.complete =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Quick visual check:<br>
+A moving average should be smoother than the raw close price.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>crypto_windows_30 <span class="sc">%&gt;%</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(symbol <span class="sc">==</span> <span class="st">"BTC-USD"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> date)) <span class="sc">+</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> close, <span class="at">color =</span> <span class="st">"Close"</span>), <span class="at">alpha =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> ma_30_close, <span class="at">color =</span> <span class="st">"30-Day MA"</span>)) <span class="sc">+</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Close"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>, <span class="st">"30-Day MA"</span> <span class="ot">=</span> <span class="st">"red"</span>)) <span class="sc">+</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"BTC-USD: Close vs 30-Day Moving Average"</span>,</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Date"</span>,</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Price (USD)"</span>,</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"Series"</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Removed 29 rows containing missing values or values outside the scale range
+(`geom_line()`).</code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="3b-window-functions_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
 
 </main>

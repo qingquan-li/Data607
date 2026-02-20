@@ -125,3 +125,44 @@ crypto_windows %>%
 Using daily cryptocurrency prices for BTC-USD and ETH-USD since January 1, 2022, I applied window-style operations in dplyr to compute **year-to-date average close prices** and **6-day moving averages** for each symbol. The YTD average provides a running baseline that resets each year, while the 6-day moving average smooths short-term noise and makes trends easier to interpret.
 
 To extend this work, I could compare multiple window sizes (7/14/30 days), compute the same features on daily returns rather than raw prices, and add data-quality checks (duplicates, missing dates, extreme outliers) to ensure rolling calculations are based on a clean and consistent time series.
+
+
+---
+
+
+# Optional: 30-day moving average
+
+```{r}
+crypto_windows_30 <- crypto %>%
+  arrange(symbol, date) %>%
+  mutate(year = year(date)) %>%
+  group_by(symbol, year) %>%
+  mutate(
+    ytd_avg_close = cummean(close)
+  ) %>%
+  group_by(symbol) %>%
+  mutate(
+    ma_30_close = slide_dbl(close, mean, .before = 29, .complete = TRUE)
+  ) %>%
+  ungroup()
+```
+
+
+Quick visual check:  
+A moving average should be smoother than the raw close price.
+
+```{r}
+crypto_windows_30 %>%
+  filter(symbol == "BTC-USD") %>%
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = close, color = "Close"), alpha = 0.6) +
+  geom_line(aes(y = ma_30_close, color = "30-Day MA")) +
+  scale_color_manual(values = c("Close" = "steelblue", "30-Day MA" = "red")) +
+  labs(
+    title = "BTC-USD: Close vs 30-Day Moving Average",
+    x = "Date",
+    y = "Price (USD)",
+    color = "Series"
+  )
+
+```
