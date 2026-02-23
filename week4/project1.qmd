@@ -1,9 +1,13 @@
 ---
-title: "project1"
+title: "project1 - Chess Tournament Parsing"
 format: html
+execute:
+  echo: true
+  warning: false
+  message: false
 ---
 
-# Approach
+# Introduction
 
 In this project, I will transform the semi-structured chess tournament text file into a clean CSV table containing:
 
@@ -27,4 +31,282 @@ In this project, I will transform the semi-structured chess tournament text file
 - The file is **fixed-width-ish** rather than a clean delimited format, so parsing relies on patterns.  
 - Some rounds contain entries like **H, U, B, X** (half-point bye, unplayed, bye, forfeit) where an opponent number may be missing.  
 - Ratings can include suffixes like **P** (provisional), e.g., `1641P17`, so I need to extract only the numeric rating reliably.  
+
+
+# Solution
+
+```{r}
+# Load packages
+# dplyr   -> data wrangling (select, mutate, join, summarize)
+# stringr -> string/text parsing
+# purrr   -> list operations (map, keep, discard)
+# tidyr   -> unnest list-columns
+library(dplyr)
+library(stringr)
+library(purrr)
+library(tidyr)
+library(tibble)
+```
+
+## 1. Read the raw text file
+
+```{r}
+path <- "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week4/tournamentinfo.txt"
+
+# Read the file line by line (each row becomes one string)
+raw_lines <- readLines(path, warn = FALSE)
+
+# Preview the first few raw lines
+head(raw_lines, 10)
+```
+
+## 2. Clean the lines
+
+AI Prompt: Remove header rows, dashed divider rows, and blank rows from the attached tournamentinfo.txt file using R so only the player-related rows remain. Please add any necessary comments.
+
+```{r}
+lines <- raw_lines |>
+  # Remove carriage return characters (sometimes appear in Windows text files)
+  str_replace_all("\r", "") |>
+  
+  # Remove divider lines made of dashes ----------------------------
+  discard(~ str_detect(.x, "^-{5,}$")) |>
+  
+  # Remove the main header row that starts with "Pair | Player Name ..."
+  discard(~ str_detect(.x, "^\\s*Pair\\s*\\|")) |>
+  
+  # Remove the second header row that starts with "Num | USCF ID ..."
+  discard(~ str_detect(.x, "^\\s*Num\\s*\\|")) |>
+  
+  # Remove blank/empty lines
+  discard(~ str_detect(.x, "^\\s*$"))
+
+# Check how many lines remain after cleaning
+length(lines)
+
+# Optional: print cleaned lines with row numbers if you want to inspect them
+tibble(i = seq_along(lines), line = lines)
+```
+
+## 3. Build player blocks safely (3 lines per player)
+
+
+```{r}
+# IMPORTANT:
+# Instead of assuming all remaining lines are perfectly grouped by 3,
+# we find the start of each player block using a pattern.
+#
+# A player block starts with a line like:
+# "  1 | GARY HUA ... "
+# " 12 | SOME PLAYER ... "
+#
+# So we search for lines that begin with:
+# optional spaces + digits + "|" 
+start_idx <- which(str_detect(lines, "^\\s*\\d+\\s*\\|"))
+
+# Create a list of blocks.
+# Each block should contain:
+#   line 1 = pair number, player name, points, round results
+#   line 2 = state, USCF ID, pre/post rating
+#   line 3 = extra info (we usually don't need much from this line)
+blocks <- map(start_idx, ~ lines[.x:(.x + 2)])
+
+# Keep only complete blocks (safety check)
+# This avoids errors if the last block is incomplete for any reason
+blocks <- keep(blocks, ~ length(.x) == 3)
+
+# How many players/blocks did we detect?
+length(blocks)
+
+# Optional: inspect the first player block
+blocks[[1]]
+```
+
+
+## 4. Parse one player block into structured columns
+
+```{r}
+# This function takes ONE 3-line block and extracts:
+# - pair number
+# - player name
+# - state
+# - total points
+# - pre-rating
+# - opponent pair numbers (for all rounds that have an opponent number)
+parse_block <- function(block3) {
+  
+  # First line contains pair number, name, points, round results
+  l1 <- block3[[1]]
+  
+  # Second line contains state and rating info
+  l2 <- block3[[2]]
+  
+  # --- Extract pair number ---
+  # Example: "  1 | GARY HUA ... " -> pair_num = 1
+  pair_num <- str_extract(l1, "^\\s*\\d+") |> 
+    str_squish() |> 
+    as.integer()
+  
+  # --- Extract player name ---
+  # Split line by "|" and take the 2nd field
+  # Example fields:
+  # [1] pair number, [2] player name, [3] points, [4+] rounds
+  fields_l1 <- str_split(l1, "\\|", simplify = TRUE)
+  
+  name <- fields_l1[1, 2] |>
+    str_squish() |>      # remove extra spaces
+    str_to_title()       # convert "GARY HUA" -> "Gary Hua"
+  
+  # --- Extract total points ---
+  # Usually the 3rd pipe-separated field
+  total_points <- fields_l1[1, 3] |>
+    str_squish() |>
+    as.numeric()
+  
+  # --- Extract state ---
+  # State is typically the first 2-letter code on line 2 (e.g., ON, MI, NY)
+  player_state <- str_extract(l2, "^\\s*[A-Z]{2}") |>
+    str_squish()
+  
+  # --- Extract pre-rating ---
+  # Line 2 has something like "R: 1794   ->1817"
+  # We want the FIRST rating (pre-tournament rating), i.e., 1794
+  pre_rating <- str_extract(l2, "R:\\s*\\d+") |>
+    str_extract("\\d+") |>
+    as.integer()
+  
+  # --- Extract opponent pair numbers from round results ---
+  # Round results in line 1 look like:
+  # W  39 | L   4 | D  12 ...
+  #
+  # We extract only results that include W/L/D + an opponent number.
+  # This automatically ignores H, U, B, X (bye/unplayed/etc.) because
+  # they usually do not include a valid opponent number.
+  opp_nums <- str_extract_all(l1, "\\b[WLD]\\s*\\d+\\b")[[1]] |>
+    str_extract("\\d+") |>
+    as.integer()
+  
+  # Return one row (as a tibble)
+  tibble(
+    pair_num = pair_num,
+    player_name = name,
+    player_state = player_state,
+    total_points = total_points,
+    pre_rating = pre_rating,
+    opp_pair_nums = list(opp_nums)  # list-column because each player has multiple opponents
+  )
+}
+```
+
+
+## 5. Parse all players
+
+```{r}
+# Apply parse_block() to every 3-line block and combine into one data frame
+players <- map_dfr(blocks, parse_block)
+
+# Preview parsed player table
+players
+```
+
+
+## 6. Compute average pre-rating of opponents
+
+```{r}
+# We need the average PRE-rating of each player's opponents.
+#
+# Strategy:
+# 1) Create a lookup table: pair_num -> pre_rating
+# 2) Expand (unnest) the opponent lists so each opponent is one row
+# 3) Join to get each opponent's pre_rating
+# 4) Group by player and compute the average
+
+# Step 1: lookup table (player number -> pre-rating)
+rating_lookup <- players |>
+  select(pair_num, pre_rating)
+
+# Step 2-4: expand opponents, join ratings, compute average
+opponent_avgs <- players |>
+  select(pair_num, opp_pair_nums) |>
+  
+  # Turn list-column into regular rows:
+  # one player with 7 opponents becomes 7 rows
+  unnest(opp_pair_nums, keep_empty = TRUE) |>
+  
+  # Rename for clarity: this is the opponent's pair number
+  rename(opp_pair_num = opp_pair_nums) |>
+  
+  # Join to get opponent's pre-rating
+  # left_join keeps all rows even if some opponent number is missing
+  left_join(rating_lookup, by = c("opp_pair_num" = "pair_num")) |>
+  
+  # Now compute average opponent pre-rating for each player
+  group_by(pair_num) |>
+  summarize(
+    avg_opp_pre_rating = mean(pre_rating, na.rm = TRUE),  # ignore NA values
+    games_counted = sum(!is.na(pre_rating)),              # how many opponent ratings were used
+    .groups = "drop"
+  )
+
+# Preview the computed averages
+opponent_avgs
+```
+
+## 7. Build the final required output table
+
+```{r}
+# Join the opponent averages back to the player info and format the final result
+final_df <- players |>
+  select(player_name, player_state, total_points, pre_rating, pair_num) |>
+  left_join(opponent_avgs, by = "pair_num") |>
+  mutate(
+    # Round to nearest integer (the project example uses whole number)
+    avg_opp_pre_rating = round(avg_opp_pre_rating)
+  ) |>
+  select(
+    `Player Name` = player_name,
+    `Player State` = player_state,
+    `Total Number of Points` = total_points,
+    `Player's Pre-Rating` = pre_rating,
+    `Average Pre Chess Rating of Opponents` = avg_opp_pre_rating
+  )
+
+# Show final output
+final_df
+```
+
+## 8. Validate the first player (Gary Hua)
+
+```{r}
+# The project prompt says Gary Hua should be:
+# Gary Hua, ON, 6.0, 1794, 1605
+final_df |> filter(`Player Name` == "Gary Hua")
+```
+
+
+## 9. Export the CSV file
+
+```{r}
+# Write the result to CSV
+output_file <- "./chess_tournament_players.csv"
+write.csv(final_df, output_file, row.names = FALSE)
+
+# Print the path so you know where the file is
+output_file
+```
+
+
+# Conclusion
+
+This project demonstrates how to turn a semi-structured text file into a database-friendly CSV using string parsing and tidy data workflows.
+
+Key insights / findings:
+
+- Even though the tournament file looks like a table, it behaves more like a fixed-format report; grouping lines into consistent player blocks (3 lines per player) makes parsing reliable.
+
+- The main complication is handling rounds that don’t list an opponent number (byes/withdrawals/forfeits). The cleanest method is to compute averages only from rounds where an opponent number exists and can be matched to a real player.
+
+- Once opponent pair numbers are extracted, the rest is standard data wrangling: join to get opponent ratings and summarize with a mean.
+
+The final CSV can be imported directly into a SQL table for further analysis (e.g., comparing performance vs. opponent strength).
 

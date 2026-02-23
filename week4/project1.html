@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>project1 - Chess Tournament Parsing</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="project1_files/libs/clipboard/clipboard.min.js"></script>
+<script src="project1_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="project1_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="project1_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="project1_files/libs/quarto-html/popper.min.js"></script>
+<script src="project1_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="project1_files/libs/quarto-html/anchor.min.js"></script>
+<link href="project1_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="project1_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="project1_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="project1_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="project1_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">project1 - Chess Tournament Parsing</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>In this project, I will transform the semi-structured chess tournament text file into a clean CSV table containing:</p>
+<ul>
+<li>Player Name<br>
+</li>
+<li>Player State<br>
+</li>
+<li>Total Points<br>
+</li>
+<li>Player Pre-Rating<br>
+</li>
+<li>Average Pre-Rating of Opponents</li>
+</ul>
+<p><strong>Planned approach</strong></p>
+<ol type="1">
+<li>Read the raw text file line-by-line.<br>
+</li>
+<li>Remove divider/header lines and group the remaining lines into 3-line “player blocks” (each player appears as 3 lines in the file).<br>
+</li>
+<li>Parse each block to extract: pair number, name, points, state, and pre-rating.</li>
+<li>From the round results line, extract each opponent’s <em>pair number</em> (ignoring byes/half-point byes/withdrawals where no opponent number exists).</li>
+<li>Join opponent pair numbers back to the players table to get opponents’ pre-ratings, then compute the average.</li>
+</ol>
+<p><strong>Anticipated data challenges</strong></p>
+<ul>
+<li>The file is <strong>fixed-width-ish</strong> rather than a clean delimited format, so parsing relies on patterns.<br>
+</li>
+<li>Some rounds contain entries like <strong>H, U, B, X</strong> (half-point bye, unplayed, bye, forfeit) where an opponent number may be missing.<br>
+</li>
+<li>Ratings can include suffixes like <strong>P</strong> (provisional), e.g., <code>1641P17</code>, so I need to extract only the numeric rating reliably.</li>
+</ul>
+</section>
+<section id="solution" class="level1">
+<h1>Solution</h1>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load packages</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># dplyr   -&gt; data wrangling (select, mutate, join, summarize)</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># stringr -&gt; string/text parsing</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># purrr   -&gt; list operations (map, keep, discard)</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># tidyr   -&gt; unnest list-columns</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(purrr)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tibble)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="read-the-raw-text-file" class="level2">
+<h2 class="anchored" data-anchor-id="read-the-raw-text-file">1. Read the raw text file</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>path <span class="ot">&lt;-</span> <span class="st">"https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week4/tournamentinfo.txt"</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Read the file line by line (each row becomes one string)</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>raw_lines <span class="ot">&lt;-</span> <span class="fu">readLines</span>(path, <span class="at">warn =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Preview the first few raw lines</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(raw_lines, <span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "-----------------------------------------------------------------------------------------" 
+ [2] " Pair | Player Name                     |Total|Round|Round|Round|Round|Round|Round|Round| "
+ [3] " Num  | USCF ID / Rtg (Pre-&gt;Post)       | Pts |  1  |  2  |  3  |  4  |  5  |  6  |  7  | "
+ [4] "-----------------------------------------------------------------------------------------" 
+ [5] "    1 | GARY HUA                        |6.0  |W  39|W  21|W  18|W  14|W   7|D  12|D   4|" 
+ [6] "   ON | 15445895 / R: 1794   -&gt;1817     |N:2  |W    |B    |W    |B    |W    |B    |W    |" 
+ [7] "-----------------------------------------------------------------------------------------" 
+ [8] "    2 | DAKSHESH DARURI                 |6.0  |W  63|W  58|L   4|W  17|W  16|W  20|W   7|" 
+ [9] "   MI | 14598900 / R: 1553   -&gt;1663     |N:2  |B    |W    |B    |W    |B    |W    |B    |" 
+[10] "-----------------------------------------------------------------------------------------" </code></pre>
+</div>
+</div>
+</section>
+<section id="clean-the-lines" class="level2">
+<h2 class="anchored" data-anchor-id="clean-the-lines">2. Clean the lines</h2>
+<p>AI Prompt: Remove header rows, dashed divider rows, and blank rows from the attached tournamentinfo.txt file using R so only the player-related rows remain. Please add any necessary comments.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>lines <span class="ot">&lt;-</span> raw_lines <span class="sc">|&gt;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remove carriage return characters (sometimes appear in Windows text files)</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">str_replace_all</span>(<span class="st">"</span><span class="sc">\r</span><span class="st">"</span>, <span class="st">""</span>) <span class="sc">|&gt;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remove divider lines made of dashes ----------------------------</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">discard</span>(<span class="sc">~</span> <span class="fu">str_detect</span>(.x, <span class="st">"^-{5,}$"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remove the main header row that starts with "Pair | Player Name ..."</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">discard</span>(<span class="sc">~</span> <span class="fu">str_detect</span>(.x, <span class="st">"^</span><span class="sc">\\</span><span class="st">s*Pair</span><span class="sc">\\</span><span class="st">s*</span><span class="sc">\\</span><span class="st">|"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remove the second header row that starts with "Num | USCF ID ..."</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">discard</span>(<span class="sc">~</span> <span class="fu">str_detect</span>(.x, <span class="st">"^</span><span class="sc">\\</span><span class="st">s*Num</span><span class="sc">\\</span><span class="st">s*</span><span class="sc">\\</span><span class="st">|"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remove blank/empty lines</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">discard</span>(<span class="sc">~</span> <span class="fu">str_detect</span>(.x, <span class="st">"^</span><span class="sc">\\</span><span class="st">s*$"</span>))</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Check how many lines remain after cleaning</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(lines)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 128</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Optional: print cleaned lines with row numbers if you want to inspect them</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">i =</span> <span class="fu">seq_along</span>(lines), <span class="at">line =</span> lines)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 128 × 2
+       i line                                                                   
+   &lt;int&gt; &lt;chr&gt;                                                                  
+ 1     1 "    1 | GARY HUA                        |6.0  |W  39|W  21|W  18|W  1…
+ 2     2 "   ON | 15445895 / R: 1794   -&gt;1817     |N:2  |W    |B    |W    |B   …
+ 3     3 "    2 | DAKSHESH DARURI                 |6.0  |W  63|W  58|L   4|W  1…
+ 4     4 "   MI | 14598900 / R: 1553   -&gt;1663     |N:2  |B    |W    |B    |W   …
+ 5     5 "    3 | ADITYA BAJAJ                    |6.0  |L   8|W  61|W  25|W  2…
+ 6     6 "   MI | 14959604 / R: 1384   -&gt;1640     |N:2  |W    |B    |W    |B   …
+ 7     7 "    4 | PATRICK H SCHILLING             |5.5  |W  23|D  28|W   2|W  2…
+ 8     8 "   MI | 12616049 / R: 1716   -&gt;1744     |N:2  |W    |B    |W    |B   …
+ 9     9 "    5 | HANSHI ZUO                      |5.5  |W  45|W  37|D  12|D  1…
+10    10 "   MI | 14601533 / R: 1655   -&gt;1690     |N:2  |B    |W    |B    |W   …
+# ℹ 118 more rows</code></pre>
+</div>
+</div>
+</section>
+<section id="build-player-blocks-safely-3-lines-per-player" class="level2">
+<h2 class="anchored" data-anchor-id="build-player-blocks-safely-3-lines-per-player">3. Build player blocks safely (3 lines per player)</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># IMPORTANT:</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Instead of assuming all remaining lines are perfectly grouped by 3,</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># we find the start of each player block using a pattern.</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># A player block starts with a line like:</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># "  1 | GARY HUA ... "</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># " 12 | SOME PLAYER ... "</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co"># So we search for lines that begin with:</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co"># optional spaces + digits + "|" </span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>start_idx <span class="ot">&lt;-</span> <span class="fu">which</span>(<span class="fu">str_detect</span>(lines, <span class="st">"^</span><span class="sc">\\</span><span class="st">s*</span><span class="sc">\\</span><span class="st">d+</span><span class="sc">\\</span><span class="st">s*</span><span class="sc">\\</span><span class="st">|"</span>))</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a list of blocks.</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Each block should contain:</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co">#   line 1 = pair number, player name, points, round results</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co">#   line 2 = state, USCF ID, pre/post rating</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="co">#   line 3 = extra info (we usually don't need much from this line)</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>blocks <span class="ot">&lt;-</span> <span class="fu">map</span>(start_idx, <span class="sc">~</span> lines[.x<span class="sc">:</span>(.x <span class="sc">+</span> <span class="dv">2</span>)])</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Keep only complete blocks (safety check)</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="co"># This avoids errors if the last block is incomplete for any reason</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>blocks <span class="ot">&lt;-</span> <span class="fu">keep</span>(blocks, <span class="sc">~</span> <span class="fu">length</span>(.x) <span class="sc">==</span> <span class="dv">3</span>)</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="co"># How many players/blocks did we detect?</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(blocks)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 64</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Optional: inspect the first player block</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>blocks[[<span class="dv">1</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "    1 | GARY HUA                        |6.0  |W  39|W  21|W  18|W  14|W   7|D  12|D   4|"
+[2] "   ON | 15445895 / R: 1794   -&gt;1817     |N:2  |W    |B    |W    |B    |W    |B    |W    |"
+[3] "    2 | DAKSHESH DARURI                 |6.0  |W  63|W  58|L   4|W  17|W  16|W  20|W   7|"</code></pre>
+</div>
+</div>
+</section>
+<section id="parse-one-player-block-into-structured-columns" class="level2">
+<h2 class="anchored" data-anchor-id="parse-one-player-block-into-structured-columns">4. Parse one player block into structured columns</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This function takes ONE 3-line block and extracts:</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># - pair number</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co"># - player name</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># - state</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co"># - total points</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co"># - pre-rating</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co"># - opponent pair numbers (for all rounds that have an opponent number)</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>parse_block <span class="ot">&lt;-</span> <span class="cf">function</span>(block3) {</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># First line contains pair number, name, points, round results</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  l1 <span class="ot">&lt;-</span> block3[[<span class="dv">1</span>]]</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Second line contains state and rating info</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  l2 <span class="ot">&lt;-</span> block3[[<span class="dv">2</span>]]</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- Extract pair number ---</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Example: "  1 | GARY HUA ... " -&gt; pair_num = 1</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  pair_num <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(l1, <span class="st">"^</span><span class="sc">\\</span><span class="st">s*</span><span class="sc">\\</span><span class="st">d+"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_squish</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.integer</span>()</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- Extract player name ---</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Split line by "|" and take the 2nd field</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Example fields:</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># [1] pair number, [2] player name, [3] points, [4+] rounds</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>  fields_l1 <span class="ot">&lt;-</span> <span class="fu">str_split</span>(l1, <span class="st">"</span><span class="sc">\\</span><span class="st">|"</span>, <span class="at">simplify =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>  name <span class="ot">&lt;-</span> fields_l1[<span class="dv">1</span>, <span class="dv">2</span>] <span class="sc">|&gt;</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_squish</span>() <span class="sc">|&gt;</span>      <span class="co"># remove extra spaces</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_to_title</span>()       <span class="co"># convert "GARY HUA" -&gt; "Gary Hua"</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- Extract total points ---</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Usually the 3rd pipe-separated field</span></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>  total_points <span class="ot">&lt;-</span> fields_l1[<span class="dv">1</span>, <span class="dv">3</span>] <span class="sc">|&gt;</span></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_squish</span>() <span class="sc">|&gt;</span></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.numeric</span>()</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- Extract state ---</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>  <span class="co"># State is typically the first 2-letter code on line 2 (e.g., ON, MI, NY)</span></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>  player_state <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(l2, <span class="st">"^</span><span class="sc">\\</span><span class="st">s*[A-Z]{2}"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_squish</span>()</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- Extract pre-rating ---</span></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Line 2 has something like "R: 1794   -&gt;1817"</span></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>  <span class="co"># We want the FIRST rating (pre-tournament rating), i.e., 1794</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>  pre_rating <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(l2, <span class="st">"R:</span><span class="sc">\\</span><span class="st">s*</span><span class="sc">\\</span><span class="st">d+"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_extract</span>(<span class="st">"</span><span class="sc">\\</span><span class="st">d+"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.integer</span>()</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --- Extract opponent pair numbers from round results ---</span></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Round results in line 1 look like:</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>  <span class="co"># W  39 | L   4 | D  12 ...</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>  <span class="co">#</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>  <span class="co"># We extract only results that include W/L/D + an opponent number.</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>  <span class="co"># This automatically ignores H, U, B, X (bye/unplayed/etc.) because</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>  <span class="co"># they usually do not include a valid opponent number.</span></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>  opp_nums <span class="ot">&lt;-</span> <span class="fu">str_extract_all</span>(l1, <span class="st">"</span><span class="sc">\\</span><span class="st">b[WLD]</span><span class="sc">\\</span><span class="st">s*</span><span class="sc">\\</span><span class="st">d+</span><span class="sc">\\</span><span class="st">b"</span>)[[<span class="dv">1</span>]] <span class="sc">|&gt;</span></span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_extract</span>(<span class="st">"</span><span class="sc">\\</span><span class="st">d+"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.integer</span>()</span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Return one row (as a tibble)</span></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>    <span class="at">pair_num =</span> pair_num,</span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a>    <span class="at">player_name =</span> name,</span>
+<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a>    <span class="at">player_state =</span> player_state,</span>
+<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a>    <span class="at">total_points =</span> total_points,</span>
+<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a>    <span class="at">pre_rating =</span> pre_rating,</span>
+<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a>    <span class="at">opp_pair_nums =</span> <span class="fu">list</span>(opp_nums)  <span class="co"># list-column because each player has multiple opponents</span></span>
+<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb12-70"><a href="#cb12-70" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="parse-all-players" class="level2">
+<h2 class="anchored" data-anchor-id="parse-all-players">5. Parse all players</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply parse_block() to every 3-line block and combine into one data frame</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>players <span class="ot">&lt;-</span> <span class="fu">map_dfr</span>(blocks, parse_block)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Preview parsed player table</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>players</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 64 × 6
+   pair_num player_name       player_state total_points pre_rating opp_pair_nums
+      &lt;int&gt; &lt;chr&gt;             &lt;chr&gt;               &lt;dbl&gt;      &lt;int&gt; &lt;list&gt;       
+ 1        1 Gary Hua          ON                    6         1794 &lt;int [7]&gt;    
+ 2        2 Dakshesh Daruri   MI                    6         1553 &lt;int [7]&gt;    
+ 3        3 Aditya Bajaj      MI                    6         1384 &lt;int [7]&gt;    
+ 4        4 Patrick H Schill… MI                    5.5       1716 &lt;int [7]&gt;    
+ 5        5 Hanshi Zuo        MI                    5.5       1655 &lt;int [7]&gt;    
+ 6        6 Hansen Song       OH                    5         1686 &lt;int [7]&gt;    
+ 7        7 Gary Dee Swathell MI                    5         1649 &lt;int [7]&gt;    
+ 8        8 Ezekiel Houghton  MI                    5         1641 &lt;int [7]&gt;    
+ 9        9 Stefano Lee       ON                    5         1411 &lt;int [7]&gt;    
+10       10 Anvit Rao         MI                    5         1365 &lt;int [7]&gt;    
+# ℹ 54 more rows</code></pre>
+</div>
+</div>
+</section>
+<section id="compute-average-pre-rating-of-opponents" class="level2">
+<h2 class="anchored" data-anchor-id="compute-average-pre-rating-of-opponents">6. Compute average pre-rating of opponents</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># We need the average PRE-rating of each player's opponents.</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Strategy:</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 1) Create a lookup table: pair_num -&gt; pre_rating</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2) Expand (unnest) the opponent lists so each opponent is one row</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 3) Join to get each opponent's pre_rating</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 4) Group by player and compute the average</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 1: lookup table (player number -&gt; pre-rating)</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>rating_lookup <span class="ot">&lt;-</span> players <span class="sc">|&gt;</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pair_num, pre_rating)</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2-4: expand opponents, join ratings, compute average</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>opponent_avgs <span class="ot">&lt;-</span> players <span class="sc">|&gt;</span></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pair_num, opp_pair_nums) <span class="sc">|&gt;</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Turn list-column into regular rows:</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># one player with 7 opponents becomes 7 rows</span></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(opp_pair_nums, <span class="at">keep_empty =</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Rename for clarity: this is the opponent's pair number</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">opp_pair_num =</span> opp_pair_nums) <span class="sc">|&gt;</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Join to get opponent's pre-rating</span></span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># left_join keeps all rows even if some opponent number is missing</span></span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(rating_lookup, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"opp_pair_num"</span> <span class="ot">=</span> <span class="st">"pair_num"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now compute average opponent pre-rating for each player</span></span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(pair_num) <span class="sc">|&gt;</span></span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(</span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">avg_opp_pre_rating =</span> <span class="fu">mean</span>(pre_rating, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),  <span class="co"># ignore NA values</span></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">games_counted =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(pre_rating)),              <span class="co"># how many opponent ratings were used</span></span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Preview the computed averages</span></span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>opponent_avgs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 64 × 3
+   pair_num avg_opp_pre_rating games_counted
+      &lt;int&gt;              &lt;dbl&gt;         &lt;int&gt;
+ 1        1              1605.             7
+ 2        2              1469.             7
+ 3        3              1564.             7
+ 4        4              1574.             7
+ 5        5              1501.             7
+ 6        6              1519.             7
+ 7        7              1372.             7
+ 8        8              1468.             7
+ 9        9              1523.             7
+10       10              1554.             7
+# ℹ 54 more rows</code></pre>
+</div>
+</div>
+</section>
+<section id="build-the-final-required-output-table" class="level2">
+<h2 class="anchored" data-anchor-id="build-the-final-required-output-table">7. Build the final required output table</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Join the opponent averages back to the player info and format the final result</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>final_df <span class="ot">&lt;-</span> players <span class="sc">|&gt;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(player_name, player_state, total_points, pre_rating, pair_num) <span class="sc">|&gt;</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(opponent_avgs, <span class="at">by =</span> <span class="st">"pair_num"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Round to nearest integer (the project example uses whole number)</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">avg_opp_pre_rating =</span> <span class="fu">round</span>(avg_opp_pre_rating)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Player Name</span><span class="st">`</span> <span class="ot">=</span> player_name,</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Player State</span><span class="st">`</span> <span class="ot">=</span> player_state,</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Total Number of Points</span><span class="st">`</span> <span class="ot">=</span> total_points,</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Player's Pre-Rating</span><span class="st">`</span> <span class="ot">=</span> pre_rating,</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Average Pre Chess Rating of Opponents</span><span class="st">`</span> <span class="ot">=</span> avg_opp_pre_rating</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Show final output</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>final_df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 64 × 5
+   `Player Name`     `Player State` Total Number of Poin…¹ `Player's Pre-Rating`
+   &lt;chr&gt;             &lt;chr&gt;                           &lt;dbl&gt;                 &lt;int&gt;
+ 1 Gary Hua          ON                                6                    1794
+ 2 Dakshesh Daruri   MI                                6                    1553
+ 3 Aditya Bajaj      MI                                6                    1384
+ 4 Patrick H Schill… MI                                5.5                  1716
+ 5 Hanshi Zuo        MI                                5.5                  1655
+ 6 Hansen Song       OH                                5                    1686
+ 7 Gary Dee Swathell MI                                5                    1649
+ 8 Ezekiel Houghton  MI                                5                    1641
+ 9 Stefano Lee       ON                                5                    1411
+10 Anvit Rao         MI                                5                    1365
+# ℹ 54 more rows
+# ℹ abbreviated name: ¹​`Total Number of Points`
+# ℹ 1 more variable: `Average Pre Chess Rating of Opponents` &lt;dbl&gt;</code></pre>
+</div>
+</div>
+</section>
+<section id="validate-the-first-player-gary-hua" class="level2">
+<h2 class="anchored" data-anchor-id="validate-the-first-player-gary-hua">8. Validate the first player (Gary Hua)</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># The project prompt says Gary Hua should be:</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Gary Hua, ON, 6.0, 1794, 1605</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>final_df <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="st">`</span><span class="at">Player Name</span><span class="st">`</span> <span class="sc">==</span> <span class="st">"Gary Hua"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 5
+  `Player Name` `Player State` `Total Number of Points` `Player's Pre-Rating`
+  &lt;chr&gt;         &lt;chr&gt;                             &lt;dbl&gt;                 &lt;int&gt;
+1 Gary Hua      ON                                    6                  1794
+# ℹ 1 more variable: `Average Pre Chess Rating of Opponents` &lt;dbl&gt;</code></pre>
+</div>
+</div>
+</section>
+<section id="export-the-csv-file" class="level2">
+<h2 class="anchored" data-anchor-id="export-the-csv-file">9. Export the CSV file</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Write the result to CSV</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>output_file <span class="ot">&lt;-</span> <span class="st">"./chess_tournament_players.csv"</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(final_df, output_file, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Print the path so you know where the file is</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>output_file</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "./chess_tournament_players.csv"</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<p>This project demonstrates how to turn a semi-structured text file into a database-friendly CSV using string parsing and tidy data workflows.</p>
+<p>Key insights / findings:</p>
+<ul>
+<li><p>Even though the tournament file looks like a table, it behaves more like a fixed-format report; grouping lines into consistent player blocks (3 lines per player) makes parsing reliable.</p></li>
+<li><p>The main complication is handling rounds that don’t list an opponent number (byes/withdrawals/forfeits). The cleanest method is to compute averages only from rounds where an opponent number exists and can be matched to a real player.</p></li>
+<li><p>Once opponent pair numbers are extracted, the rest is standard data wrangling: join to get opponent ratings and summarize with a mean.</p></li>
+</ul>
+<p>The final CSV can be imported directly into a SQL table for further analysis (e.g., comparing performance vs.&nbsp;opponent strength).</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
