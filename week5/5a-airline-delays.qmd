@@ -1,0 +1,16 @@
+---
+title: "5a-airline-delays"
+format: html
+---
+
+# Approach
+
+This assignment examines arrival delay data for two airlines, **Alaska** and **AM West**, across five U.S. destinations.
+
+**Planned approach:**
+
+1. Read the CSV and clean it by removing the blank row and filling in missing airline names.
+2. Pivot the data from wide to long format using `tidyr`.
+3. Calculate delay percentages (not just raw counts) for each airline both overall and per city.
+4. Compare the two airlines using tables and visualizations.
+5. Discuss the results, including the well-known Simpson's Paradox that emerges from this dataset.
