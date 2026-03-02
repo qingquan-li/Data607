@@ -3,14 +3,164 @@ title: "5a-airline-delays"
 format: html
 ---
 
-# Approach
+# Introduction
 
 This assignment examines arrival delay data for two airlines, **Alaska** and **AM West**, across five U.S. destinations.
 
 **Planned approach:**
 
-1. Read the CSV and clean it by removing the blank row and filling in missing airline names.
-2. Pivot the data from wide to long format using `tidyr`.
-3. Calculate delay percentages (not just raw counts) for each airline both overall and per city.
-4. Compare the two airlines using tables and visualizations.
-5. Discuss the results, including the well-known Simpson's Paradox that emerges from this dataset.
+1.  Read the CSV and clean it by removing the blank row and filling in missing airline names.
+2.  Pivot the data from wide to long format using `tidyr`.
+3.  Calculate delay percentages (not just raw counts) for each airline both overall and per city.
+4.  Compare the two airlines using tables and visualizations.
+5.  Discuss the results and findings.
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+```
+
+## Solution
+
+### Step 1 — Read the CSV, clean and fill missing data
+
+Read the file exactly as structured.
+
+```{r read-csv}
+file_path = "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week5/data/airline_delays.csv"
+raw <- read.csv(file_path, header = TRUE, check.names = FALSE)
+kable(raw, caption = "Raw CSV data (wide format, as provided)")
+```
+
+The data contains an empty row and the `airline` column has blank cells that need to be filled.
+
+```{r clean}
+# Remove completely empty rows
+cleaned <- raw %>%
+  filter(!(is.na(airline) | airline == "") | !(is.na(status) | status == "")) %>%
+  filter(rowSums(is.na(.) | . == "") != ncol(.))
+
+# Fill missing airline names forward (the blank cell inherits the airline above it)
+cleaned <- cleaned %>%
+  mutate(airline = na_if(airline, "")) %>%
+  fill(airline, .direction = "down")
+
+kable(cleaned, caption = "Cleaned wide-format data (missing values populated)")
+```
+
+### Step 2 — Pivot from wide to long format
+
+```{r pivot}
+long <- cleaned %>%
+  pivot_longer(
+    cols      = `Los Angeles`:Seattle,
+    names_to  = "city",
+    values_to = "flights"
+  )
+
+kable(head(long, 10), caption = "Long-format data (first 10 rows)")
+```
+
+### Step 3 — Spread status into separate columns for easier calculation
+
+```{r spread-status}
+wide_status <- long %>%
+  pivot_wider(names_from = status, values_from = flights) %>%
+  rename(on_time = `on time`) %>%
+  mutate(
+    total       = on_time + delayed,
+    pct_delayed = round(delayed / total * 100, 2),
+    pct_ontime  = round(on_time / total * 100, 2)
+  )
+
+kable(wide_status, caption = "Flights by airline and city with delay percentages")
+```
+
+### Step 4 — Compare delay rates
+
+#### Compare delay rates by city and airlines
+
+```{r city-comparison}
+city_comparison <- wide_status %>%
+  select(city, airline, total, delayed, pct_delayed) %>%
+  arrange(city, airline)
+
+kable(city_comparison,
+      caption = "Delay percentage by city and airline",
+      col.names = c("Airline", "City", "Total Flights", "Delayed Flights", "% Delayed"))
+```
+
+```{r city-chart, fig.width=9, fig.height=5}
+ggplot(wide_status, aes(x = city, y = pct_delayed, fill = airline)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = paste0(pct_delayed, "%")),
+            position = position_dodge(width = 0.9), vjust = -0.4, size = 3.2) +
+  labs(
+    title    = "Delay Percentage by City and Airline",
+    subtitle = "Alaska vs. AM West across five destinations",
+    x = "City", y = "Delay %", fill = "Airline"
+  ) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2")
+```
+
+**City-by-city finding:** In every single city, Alaska Airlines has a lower delay percentage than AM West.
+
+#### Compare overall delay rates
+
+```{r overall-comparison}
+overall <- wide_status %>%
+  group_by(airline) %>%
+  summarise(
+    total_flights  = sum(total),
+    total_delayed  = sum(delayed),
+    total_on_time  = sum(on_time),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    pct_delayed = round(total_delayed / total_flights * 100, 2),
+    pct_ontime  = round(total_on_time / total_flights * 100, 2)
+  )
+
+kable(overall,
+      caption = "Overall delay percentage by airline",
+      col.names = c("Airline", "Total Flights", "Delayed", "On Time",
+                     "% Delayed", "% On Time"))
+```
+
+```{r overall-chart, fig.width=6, fig.height=4}
+ggplot(overall, aes(x = airline, y = pct_delayed, fill = airline)) +
+  geom_col(width = 0.5) +
+  geom_text(aes(label = paste0(pct_delayed, "%")), vjust = -0.4, size = 4) +
+  labs(
+    title = "Overall Delay Percentage: Alaska vs. AM West",
+    x = "Airline", y = "Delay %"
+  ) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "none")
+```
+
+**Overall finding:** When we aggregate across all cities, Alaska Airlines has a higher overall delay percentage than AM West — the opposite of the city-by-city result!
+
+## Conclusion
+
+### Simpson's Paradox
+
+This dataset is a classic example of **Simpson's Paradox**: a trend that appears in individual groups (cities) reverses when the groups are combined.
+
+**City-by-city**, Alaska beats AM West in every destination — its delay rate is lower in Los Angeles, Phoenix, San Diego, San Francisco, and Seattle.
+
+**Overall**, AM West appears to perform better with a lower aggregate delay percentage.
+
+### Why does this happen?
+
+The explanation lies in each airline's route mix. **Alaska** Airlines flies the vast majority of its flights to **Seattle**, a **high-delay city**, while **AM West** concentrates heavily on **Phoenix**, a **low-delay city**.
+
+### Takeaway
+
+Raw aggregate comparisons can be misleading. When evaluating airline performance (or any grouped data), it is essential to control for confounding variables, in this case, the distribution of flights across cities.
+
+The city-level comparison provides a fairer appraisal, and by that measure, **Alaska Airlines has a better on-time record than AM West in every destination studied**.
