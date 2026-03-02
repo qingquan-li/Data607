@@ -3,3 +3,112 @@ title: "5b-ELO-calculations"
 format: html
 ---
 
+## Introduction
+
+This analysis evaluates player performance in a chess tournament by comparing actual scores
+against ELO-expected scores. The dataset (`chess_tournament_players.csv`) contains 64 players
+with their pre-ratings, total points scored, and average opponent pre-ratings.
+
+**Approach:**
+
+1. For each player, I compute the expected score per game using the standard ELO
+expected-score formula, then multiply by the number of rounds (7) to get a total expected
+score.
+
+2. Comparing this to the actual score reveals which players most overperformed or
+underperformed relative to expectations.
+
+3. Then rank players by the difference
+(actual − expected) to identify the top five overperformers and top five underperformers.
+
+The ELO expected score formula used is:
+
+$$E = \frac{1}{1 + 10^{(R_{\text{opp}} - R_{\text{player}}) / 400}}$$
+
+Source: https://en.wikipedia.org/wiki/Elo_rating_system#Mathematical_details
+
+
+## Solution
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(knitr)
+```
+
+### 1. Load the Data
+
+```{r}
+path = "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week4/chess_tournament_players.csv"
+players <- read.csv(path, stringsAsFactors = FALSE)
+
+# Clean up column names for convenience
+colnames(players) <- c("Name", "State", "TotalPoints", "PreRating", "AvgOppRating")
+
+kable(head(players, 10), caption = "First 10 Players in the Dataset")
+```
+
+### 2. Calculate Expected Scores
+
+Using the average pre-rating of opponents as a proxy, the expected score per game is:
+
+$$E_{\text{game}} = \frac{1}{1 + 10^{(R_{\text{opp}} - R_{\text{player}}) / 400}}$$
+
+The total expected score over 7 rounds is $E_{\text{total}} = 7 \times E_{\text{game}}$.
+
+```{r}
+num_rounds <- 7
+
+players <- players %>%
+  mutate(
+    # Expected score per game based on ELO formula
+    ExpectedPerGame = 1 / (1 + 10^((AvgOppRating - PreRating) / 400)),
+    # Total expected score across all rounds
+    ExpectedScore = round(num_rounds * ExpectedPerGame, 2),
+    # Difference: positive = overperformance, negative = underperformance
+    Difference = round(TotalPoints - ExpectedScore, 2)
+  )
+
+kable(
+  players %>% select(Name, PreRating, AvgOppRating, TotalPoints, ExpectedScore, Difference),
+  caption = "All Players with Expected Scores and Differences"
+)
+```
+
+### 3. Top 5 Overperformers
+
+These players scored the most *above* their ELO-expected score:
+
+```{r}
+overperformers <- players %>%
+  arrange(desc(Difference)) %>%
+  slice_head(n = 5) %>%
+  select(Name, State, PreRating, AvgOppRating, TotalPoints, ExpectedScore, Difference)
+
+kable(overperformers, caption = "Top 5 Overperformers (Actual − Expected)")
+```
+
+### 4. Top 5 Underperformers
+
+These players scored the most *below* their ELO-expected score:
+
+```{r}
+underperformers <- players %>%
+  arrange(Difference) %>%
+  slice_head(n = 5) %>%
+  select(Name, State, PreRating, AvgOppRating, TotalPoints, ExpectedScore, Difference)
+
+kable(underperformers, caption = "Top 5 Underperformers (Actual − Expected)")
+```
+
+## Conclusion
+
+Using the standard ELO expected-score formula, we estimated each player's expected
+tournament outcome and compared it to their actual performance.
+
+**Findings:**
+
+- The biggest overperformers tended to be lower-rated players who faced relatively strong
+  opposition but still managed high point totals.
+- The biggest underperformers were often higher-rated players whose point totals fell
+  well short of what their rating advantage predicted — possibly due to off-form play,
+  tough pairings, or nerves.

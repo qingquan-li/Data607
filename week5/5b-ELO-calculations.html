@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>5b-ELO-calculations</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="5b-ELO-calculations_files/libs/clipboard/clipboard.min.js"></script>
+<script src="5b-ELO-calculations_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="5b-ELO-calculations_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="5b-ELO-calculations_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="5b-ELO-calculations_files/libs/quarto-html/popper.min.js"></script>
+<script src="5b-ELO-calculations_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="5b-ELO-calculations_files/libs/quarto-html/anchor.min.js"></script>
+<link href="5b-ELO-calculations_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="5b-ELO-calculations_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="5b-ELO-calculations_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="5b-ELO-calculations_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="5b-ELO-calculations_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">5b-ELO-calculations</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>This analysis evaluates player performance in a chess tournament by comparing actual scores against ELO-expected scores. The dataset (<code>chess_tournament_players.csv</code>) contains 64 players with their pre-ratings, total points scored, and average opponent pre-ratings.</p>
+<p><strong>Approach:</strong></p>
+<ol type="1">
+<li><p>For each player, I compute the expected score per game using the standard ELO expected-score formula, then multiply by the number of rounds (7) to get a total expected score.</p></li>
+<li><p>Comparing this to the actual score reveals which players most overperformed or underperformed relative to expectations.</p></li>
+<li><p>Then rank players by the difference (actual − expected) to identify the top five overperformers and top five underperformers.</p></li>
+</ol>
+<p>The ELO expected score formula used is:</p>
+<p><span class="math display">\[E = \frac{1}{1 + 10^{(R_{\text{opp}} - R_{\text{player}}) / 400}}\]</span></p>
+<p>Source: https://en.wikipedia.org/wiki/Elo_rating_system#Mathematical_details</p>
+</section>
+<section id="solution" class="level2">
+<h2 class="anchored" data-anchor-id="solution">Solution</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="load-the-data" class="level3">
+<h3 class="anchored" data-anchor-id="load-the-data">1. Load the Data</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>path <span class="ot">=</span> <span class="st">"https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week4/chess_tournament_players.csv"</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>players <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(path, <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Clean up column names for convenience</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(players) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Name"</span>, <span class="st">"State"</span>, <span class="st">"TotalPoints"</span>, <span class="st">"PreRating"</span>, <span class="st">"AvgOppRating"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(<span class="fu">head</span>(players, <span class="dv">10</span>), <span class="at">caption =</span> <span class="st">"First 10 Players in the Dataset"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>First 10 Players in the Dataset</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Name</th>
+<th style="text-align: left;">State</th>
+<th style="text-align: right;">TotalPoints</th>
+<th style="text-align: right;">PreRating</th>
+<th style="text-align: right;">AvgOppRating</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Gary Hua</td>
+<td style="text-align: left;">ON</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">1794</td>
+<td style="text-align: right;">1605</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Dakshesh Daruri</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">1553</td>
+<td style="text-align: right;">1469</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Aditya Bajaj</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">1384</td>
+<td style="text-align: right;">1564</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Patrick H Schilling</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.5</td>
+<td style="text-align: right;">1716</td>
+<td style="text-align: right;">1574</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Hanshi Zuo</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.5</td>
+<td style="text-align: right;">1655</td>
+<td style="text-align: right;">1501</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Hansen Song</td>
+<td style="text-align: left;">OH</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1686</td>
+<td style="text-align: right;">1519</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Gary Dee Swathell</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1649</td>
+<td style="text-align: right;">1372</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ezekiel Houghton</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1641</td>
+<td style="text-align: right;">1468</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Stefano Lee</td>
+<td style="text-align: left;">ON</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1411</td>
+<td style="text-align: right;">1523</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Anvit Rao</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1365</td>
+<td style="text-align: right;">1554</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="calculate-expected-scores" class="level3">
+<h3 class="anchored" data-anchor-id="calculate-expected-scores">2. Calculate Expected Scores</h3>
+<p>Using the average pre-rating of opponents as a proxy, the expected score per game is:</p>
+<p><span class="math display">\[E_{\text{game}} = \frac{1}{1 + 10^{(R_{\text{opp}} - R_{\text{player}}) / 400}}\]</span></p>
+<p>The total expected score over 7 rounds is <span class="math inline">\(E_{\text{total}} = 7 \times E_{\text{game}}\)</span>.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>num_rounds <span class="ot">&lt;-</span> <span class="dv">7</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>players <span class="ot">&lt;-</span> players <span class="sc">%&gt;%</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Expected score per game based on ELO formula</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">ExpectedPerGame =</span> <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="dv">10</span><span class="sc">^</span>((AvgOppRating <span class="sc">-</span> PreRating) <span class="sc">/</span> <span class="dv">400</span>)),</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Total expected score across all rounds</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">ExpectedScore =</span> <span class="fu">round</span>(num_rounds <span class="sc">*</span> ExpectedPerGame, <span class="dv">2</span>),</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Difference: positive = overperformance, negative = underperformance</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">Difference =</span> <span class="fu">round</span>(TotalPoints <span class="sc">-</span> ExpectedScore, <span class="dv">2</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  players <span class="sc">%&gt;%</span> <span class="fu">select</span>(Name, PreRating, AvgOppRating, TotalPoints, ExpectedScore, Difference),</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"All Players with Expected Scores and Differences"</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>All Players with Expected Scores and Differences</caption>
+<colgroup>
+<col style="width: 31%">
+<col style="width: 11%">
+<col style="width: 14%">
+<col style="width: 13%">
+<col style="width: 16%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Name</th>
+<th style="text-align: right;">PreRating</th>
+<th style="text-align: right;">AvgOppRating</th>
+<th style="text-align: right;">TotalPoints</th>
+<th style="text-align: right;">ExpectedScore</th>
+<th style="text-align: right;">Difference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Gary Hua</td>
+<td style="text-align: right;">1794</td>
+<td style="text-align: right;">1605</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">5.24</td>
+<td style="text-align: right;">0.76</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Dakshesh Daruri</td>
+<td style="text-align: right;">1553</td>
+<td style="text-align: right;">1469</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">4.33</td>
+<td style="text-align: right;">1.67</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Aditya Bajaj</td>
+<td style="text-align: right;">1384</td>
+<td style="text-align: right;">1564</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">1.83</td>
+<td style="text-align: right;">4.17</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Patrick H Schilling</td>
+<td style="text-align: right;">1716</td>
+<td style="text-align: right;">1574</td>
+<td style="text-align: right;">5.5</td>
+<td style="text-align: right;">4.86</td>
+<td style="text-align: right;">0.64</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Hanshi Zuo</td>
+<td style="text-align: right;">1655</td>
+<td style="text-align: right;">1501</td>
+<td style="text-align: right;">5.5</td>
+<td style="text-align: right;">4.96</td>
+<td style="text-align: right;">0.54</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Hansen Song</td>
+<td style="text-align: right;">1686</td>
+<td style="text-align: right;">1519</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">5.06</td>
+<td style="text-align: right;">-0.06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Gary Dee Swathell</td>
+<td style="text-align: right;">1649</td>
+<td style="text-align: right;">1372</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">5.82</td>
+<td style="text-align: right;">-0.82</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ezekiel Houghton</td>
+<td style="text-align: right;">1641</td>
+<td style="text-align: right;">1468</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">5.11</td>
+<td style="text-align: right;">-0.11</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Stefano Lee</td>
+<td style="text-align: right;">1411</td>
+<td style="text-align: right;">1523</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">2.41</td>
+<td style="text-align: right;">2.59</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Anvit Rao</td>
+<td style="text-align: right;">1365</td>
+<td style="text-align: right;">1554</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1.76</td>
+<td style="text-align: right;">3.24</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Cameron William Mc Leman</td>
+<td style="text-align: right;">1712</td>
+<td style="text-align: right;">1468</td>
+<td style="text-align: right;">4.5</td>
+<td style="text-align: right;">5.62</td>
+<td style="text-align: right;">-1.12</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Kenneth J Tack</td>
+<td style="text-align: right;">1663</td>
+<td style="text-align: right;">1506</td>
+<td style="text-align: right;">4.5</td>
+<td style="text-align: right;">4.98</td>
+<td style="text-align: right;">-0.48</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Torrance Henry Jr</td>
+<td style="text-align: right;">1666</td>
+<td style="text-align: right;">1498</td>
+<td style="text-align: right;">4.5</td>
+<td style="text-align: right;">5.07</td>
+<td style="text-align: right;">-0.57</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Bradley Shaw</td>
+<td style="text-align: right;">1610</td>
+<td style="text-align: right;">1515</td>
+<td style="text-align: right;">4.5</td>
+<td style="text-align: right;">4.43</td>
+<td style="text-align: right;">0.07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Zachary James Houghton</td>
+<td style="text-align: right;">1220</td>
+<td style="text-align: right;">1484</td>
+<td style="text-align: right;">4.5</td>
+<td style="text-align: right;">1.26</td>
+<td style="text-align: right;">3.24</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Mike Nikitin</td>
+<td style="text-align: right;">1604</td>
+<td style="text-align: right;">1386</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">5.45</td>
+<td style="text-align: right;">-1.45</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ronald Grzegorczyk</td>
+<td style="text-align: right;">1629</td>
+<td style="text-align: right;">1499</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">4.75</td>
+<td style="text-align: right;">-0.75</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">David Sundeen</td>
+<td style="text-align: right;">1600</td>
+<td style="text-align: right;">1480</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">4.66</td>
+<td style="text-align: right;">-0.66</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Dipankar Roy</td>
+<td style="text-align: right;">1564</td>
+<td style="text-align: right;">1426</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">4.82</td>
+<td style="text-align: right;">-0.82</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Jason Zheng</td>
+<td style="text-align: right;">1595</td>
+<td style="text-align: right;">1411</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">5.20</td>
+<td style="text-align: right;">-1.20</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Dinh Dang Bui</td>
+<td style="text-align: right;">1563</td>
+<td style="text-align: right;">1470</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">4.42</td>
+<td style="text-align: right;">-0.42</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Eugene L Mcclure</td>
+<td style="text-align: right;">1555</td>
+<td style="text-align: right;">1300</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">5.69</td>
+<td style="text-align: right;">-1.69</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Alan Bui</td>
+<td style="text-align: right;">1363</td>
+<td style="text-align: right;">1214</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">4.92</td>
+<td style="text-align: right;">-0.92</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Michael R Aldrich</td>
+<td style="text-align: right;">1229</td>
+<td style="text-align: right;">1357</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">2.27</td>
+<td style="text-align: right;">1.73</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Loren Schwiebert</td>
+<td style="text-align: right;">1745</td>
+<td style="text-align: right;">1363</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">6.30</td>
+<td style="text-align: right;">-2.80</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Max Zhu</td>
+<td style="text-align: right;">1579</td>
+<td style="text-align: right;">1507</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">4.22</td>
+<td style="text-align: right;">-0.72</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Gaurav Gidwani</td>
+<td style="text-align: right;">1552</td>
+<td style="text-align: right;">1222</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">6.09</td>
+<td style="text-align: right;">-2.59</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Sofia Adina Stanescu-Bellu</td>
+<td style="text-align: right;">1507</td>
+<td style="text-align: right;">1522</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">3.35</td>
+<td style="text-align: right;">0.15</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chiedozie Okorie</td>
+<td style="text-align: right;">1602</td>
+<td style="text-align: right;">1314</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">5.88</td>
+<td style="text-align: right;">-2.38</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">George Avery Jones</td>
+<td style="text-align: right;">1522</td>
+<td style="text-align: right;">1144</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">6.29</td>
+<td style="text-align: right;">-2.79</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Rishi Shetty</td>
+<td style="text-align: right;">1494</td>
+<td style="text-align: right;">1260</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">5.56</td>
+<td style="text-align: right;">-2.06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Joshua Philip Mathews</td>
+<td style="text-align: right;">1441</td>
+<td style="text-align: right;">1379</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">4.12</td>
+<td style="text-align: right;">-0.62</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Jade Ge</td>
+<td style="text-align: right;">1449</td>
+<td style="text-align: right;">1277</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">5.10</td>
+<td style="text-align: right;">-1.60</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Michael Jeffery Thomas</td>
+<td style="text-align: right;">1399</td>
+<td style="text-align: right;">1375</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">3.74</td>
+<td style="text-align: right;">-0.24</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Joshua David Lee</td>
+<td style="text-align: right;">1438</td>
+<td style="text-align: right;">1150</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">5.88</td>
+<td style="text-align: right;">-2.38</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Siddharth Jha</td>
+<td style="text-align: right;">1355</td>
+<td style="text-align: right;">1388</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">3.17</td>
+<td style="text-align: right;">0.33</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Amiyatosh Pwnanandam</td>
+<td style="text-align: right;">980</td>
+<td style="text-align: right;">1385</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">0.62</td>
+<td style="text-align: right;">2.88</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Brian Liu</td>
+<td style="text-align: right;">1423</td>
+<td style="text-align: right;">1539</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.37</td>
+<td style="text-align: right;">0.63</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Joel R Hendon</td>
+<td style="text-align: right;">1436</td>
+<td style="text-align: right;">1430</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">3.56</td>
+<td style="text-align: right;">-0.56</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Forest Zhang</td>
+<td style="text-align: right;">1348</td>
+<td style="text-align: right;">1391</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">3.07</td>
+<td style="text-align: right;">-0.07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Kyle William Murphy</td>
+<td style="text-align: right;">1403</td>
+<td style="text-align: right;">1248</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">4.97</td>
+<td style="text-align: right;">-1.97</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Jared Ge</td>
+<td style="text-align: right;">1332</td>
+<td style="text-align: right;">1150</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">5.18</td>
+<td style="text-align: right;">-2.18</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Robert Glen Vasey</td>
+<td style="text-align: right;">1283</td>
+<td style="text-align: right;">1107</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">5.14</td>
+<td style="text-align: right;">-2.14</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Justin D Schilling</td>
+<td style="text-align: right;">1199</td>
+<td style="text-align: right;">1327</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">2.27</td>
+<td style="text-align: right;">0.73</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Derek Yan</td>
+<td style="text-align: right;">1242</td>
+<td style="text-align: right;">1152</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">4.39</td>
+<td style="text-align: right;">-1.39</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Jacob Alexander Lavalley</td>
+<td style="text-align: right;">377</td>
+<td style="text-align: right;">1358</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">2.98</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Eric Wright</td>
+<td style="text-align: right;">1362</td>
+<td style="text-align: right;">1392</td>
+<td style="text-align: right;">2.5</td>
+<td style="text-align: right;">3.20</td>
+<td style="text-align: right;">-0.70</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Daniel Khain</td>
+<td style="text-align: right;">1382</td>
+<td style="text-align: right;">1356</td>
+<td style="text-align: right;">2.5</td>
+<td style="text-align: right;">3.76</td>
+<td style="text-align: right;">-1.26</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Michael J Martin</td>
+<td style="text-align: right;">1291</td>
+<td style="text-align: right;">1286</td>
+<td style="text-align: right;">2.5</td>
+<td style="text-align: right;">3.55</td>
+<td style="text-align: right;">-1.05</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Shivam Jha</td>
+<td style="text-align: right;">1056</td>
+<td style="text-align: right;">1296</td>
+<td style="text-align: right;">2.5</td>
+<td style="text-align: right;">1.41</td>
+<td style="text-align: right;">1.09</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Tejas Ayyagari</td>
+<td style="text-align: right;">1011</td>
+<td style="text-align: right;">1356</td>
+<td style="text-align: right;">2.5</td>
+<td style="text-align: right;">0.84</td>
+<td style="text-align: right;">1.66</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ethan Guo</td>
+<td style="text-align: right;">935</td>
+<td style="text-align: right;">1495</td>
+<td style="text-align: right;">2.5</td>
+<td style="text-align: right;">0.27</td>
+<td style="text-align: right;">2.23</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Jose C Ybarra</td>
+<td style="text-align: right;">1393</td>
+<td style="text-align: right;">1345</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">3.98</td>
+<td style="text-align: right;">-1.98</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Larry Hodge</td>
+<td style="text-align: right;">1270</td>
+<td style="text-align: right;">1206</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">4.14</td>
+<td style="text-align: right;">-2.14</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Alex Kong</td>
+<td style="text-align: right;">1186</td>
+<td style="text-align: right;">1406</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">1.54</td>
+<td style="text-align: right;">0.46</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Marisa Ricci</td>
+<td style="text-align: right;">1153</td>
+<td style="text-align: right;">1414</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">1.27</td>
+<td style="text-align: right;">0.73</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Michael Lu</td>
+<td style="text-align: right;">1092</td>
+<td style="text-align: right;">1363</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">1.22</td>
+<td style="text-align: right;">0.78</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Viraj Mohile</td>
+<td style="text-align: right;">917</td>
+<td style="text-align: right;">1391</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">0.43</td>
+<td style="text-align: right;">1.57</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Sean M Mc Cormick</td>
+<td style="text-align: right;">853</td>
+<td style="text-align: right;">1319</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">0.45</td>
+<td style="text-align: right;">1.55</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Julia Shen</td>
+<td style="text-align: right;">967</td>
+<td style="text-align: right;">1330</td>
+<td style="text-align: right;">1.5</td>
+<td style="text-align: right;">0.77</td>
+<td style="text-align: right;">0.73</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Jezzel Farkas</td>
+<td style="text-align: right;">955</td>
+<td style="text-align: right;">1327</td>
+<td style="text-align: right;">1.5</td>
+<td style="text-align: right;">0.74</td>
+<td style="text-align: right;">0.76</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ashwin Balaji</td>
+<td style="text-align: right;">1530</td>
+<td style="text-align: right;">1186</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;">6.15</td>
+<td style="text-align: right;">-5.15</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Thomas Joseph Hosmer</td>
+<td style="text-align: right;">1175</td>
+<td style="text-align: right;">1350</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;">1.87</td>
+<td style="text-align: right;">-0.87</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ben Li</td>
+<td style="text-align: right;">1163</td>
+<td style="text-align: right;">1263</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;">2.52</td>
+<td style="text-align: right;">-1.52</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="top-5-overperformers" class="level3">
+<h3 class="anchored" data-anchor-id="top-5-overperformers">3. Top 5 Overperformers</h3>
+<p>These players scored the most <em>above</em> their ELO-expected score:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>overperformers <span class="ot">&lt;-</span> players <span class="sc">%&gt;%</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(Difference)) <span class="sc">%&gt;%</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">slice_head</span>(<span class="at">n =</span> <span class="dv">5</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Name, State, PreRating, AvgOppRating, TotalPoints, ExpectedScore, Difference)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(overperformers, <span class="at">caption =</span> <span class="st">"Top 5 Overperformers (Actual − Expected)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Top 5 Overperformers (Actual − Expected)</caption>
+<colgroup>
+<col style="width: 27%">
+<col style="width: 6%">
+<col style="width: 10%">
+<col style="width: 14%">
+<col style="width: 13%">
+<col style="width: 15%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Name</th>
+<th style="text-align: left;">State</th>
+<th style="text-align: right;">PreRating</th>
+<th style="text-align: right;">AvgOppRating</th>
+<th style="text-align: right;">TotalPoints</th>
+<th style="text-align: right;">ExpectedScore</th>
+<th style="text-align: right;">Difference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Aditya Bajaj</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">1384</td>
+<td style="text-align: right;">1564</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">1.83</td>
+<td style="text-align: right;">4.17</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Anvit Rao</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">1365</td>
+<td style="text-align: right;">1554</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1.76</td>
+<td style="text-align: right;">3.24</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Zachary James Houghton</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">1220</td>
+<td style="text-align: right;">1484</td>
+<td style="text-align: right;">4.5</td>
+<td style="text-align: right;">1.26</td>
+<td style="text-align: right;">3.24</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Jacob Alexander Lavalley</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">377</td>
+<td style="text-align: right;">1358</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">2.98</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Amiyatosh Pwnanandam</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">980</td>
+<td style="text-align: right;">1385</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">0.62</td>
+<td style="text-align: right;">2.88</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="top-5-underperformers" class="level3">
+<h3 class="anchored" data-anchor-id="top-5-underperformers">4. Top 5 Underperformers</h3>
+<p>These players scored the most <em>below</em> their ELO-expected score:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>underperformers <span class="ot">&lt;-</span> players <span class="sc">%&gt;%</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(Difference) <span class="sc">%&gt;%</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">slice_head</span>(<span class="at">n =</span> <span class="dv">5</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Name, State, PreRating, AvgOppRating, TotalPoints, ExpectedScore, Difference)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(underperformers, <span class="at">caption =</span> <span class="st">"Top 5 Underperformers (Actual − Expected)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Top 5 Underperformers (Actual − Expected)</caption>
+<colgroup>
+<col style="width: 22%">
+<col style="width: 7%">
+<col style="width: 11%">
+<col style="width: 15%">
+<col style="width: 14%">
+<col style="width: 16%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Name</th>
+<th style="text-align: left;">State</th>
+<th style="text-align: right;">PreRating</th>
+<th style="text-align: right;">AvgOppRating</th>
+<th style="text-align: right;">TotalPoints</th>
+<th style="text-align: right;">ExpectedScore</th>
+<th style="text-align: right;">Difference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Ashwin Balaji</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">1530</td>
+<td style="text-align: right;">1186</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;">6.15</td>
+<td style="text-align: right;">-5.15</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Loren Schwiebert</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">1745</td>
+<td style="text-align: right;">1363</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">6.30</td>
+<td style="text-align: right;">-2.80</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">George Avery Jones</td>
+<td style="text-align: left;">ON</td>
+<td style="text-align: right;">1522</td>
+<td style="text-align: right;">1144</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">6.29</td>
+<td style="text-align: right;">-2.79</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Gaurav Gidwani</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">1552</td>
+<td style="text-align: right;">1222</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">6.09</td>
+<td style="text-align: right;">-2.59</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chiedozie Okorie</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">1602</td>
+<td style="text-align: right;">1314</td>
+<td style="text-align: right;">3.5</td>
+<td style="text-align: right;">5.88</td>
+<td style="text-align: right;">-2.38</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
+<p>Using the standard ELO expected-score formula, we estimated each player’s expected tournament outcome and compared it to their actual performance.</p>
+<p><strong>Findings:</strong></p>
+<ul>
+<li>The biggest overperformers tended to be lower-rated players who faced relatively strong opposition but still managed high point totals.</li>
+<li>The biggest underperformers were often higher-rated players whose point totals fell well short of what their rating advantage predicted — possibly due to off-form play, tough pairings, or nerves.</li>
+</ul>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
