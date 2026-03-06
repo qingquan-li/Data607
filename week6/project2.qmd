@@ -1,0 +1,11 @@
+---
+title: "project2"
+format: html
+---
+
+# Approach
+
+1.  Read the data into data frames and clean them.
+2.  Pivot the data from wide to tidy format.
+3.  Process the data based on the requirements.
+4.  Discuss the results and findings.
