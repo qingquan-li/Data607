@@ -1,0 +1,114 @@
+---
+title:  "Project 2 — Data Transformations: GDP by Country"
+author: "Qingquan Li"
+date: 03/08/2026
+format:
+  html:
+    toc: true
+    code-fold: true
+    theme: flatly
+execute:
+  echo:    true
+  warning: false
+---
+
+## 1 — Data Source
+
+This dataset contains **nominal GDP** (in millions USD) for 10 countries across six decades (1970–2020). The data originates from the Wikipedia page [List of countries by past and projected GDP (nominal)](https://en.wikipedia.org/wiki/List_of_countries_by_past_and_projected_GDP_(nominal)), which compiles figures from the **IMF World Economic Outlook** database.
+
+The dataset is **untidy** because the year columns (1970, 1980, …) are values of a variable, not variable names.
+
+## 2 — Data Structure Before Tidying
+
+```{r load-libraries}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r import-raw}
+raw_gdp <- read.csv("https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week6/data/dataset1_gdp.csv",
+                     check.names = FALSE)
+```
+
+```{r preview-raw}
+dim(raw_gdp)
+head(raw_gdp)
+str(raw_gdp)
+```
+
+The raw dataset has **10 rows** (one per country) and **7 columns** (Country + 6 year columns). Each year column stores GDP values — this is a classic wide format.
+
+## 3 — Transformation Steps
+
+```{r tidy-gdp}
+tidy_gdp <- raw_gdp |>
+  # Step 1: Reshape from wide to long format
+  pivot_longer(
+    cols      = -Country,
+    names_to  = "year",
+    values_to = "gdp_millions"
+  ) |>
+  # Step 2: Convert year from character to integer
+
+  mutate(year = as.integer(year)) |>
+  # Step 3: Rename columns to lowercase snake_case
+  rename(country = Country) |>
+  # Step 4: Remove any rows with missing GDP values
+  drop_na(gdp_millions) |>
+  # Step 5: Sort by country and year for readability
+  arrange(country, year)
+```
+
+```{r preview-tidy}
+head(tidy_gdp, 12)
+str(tidy_gdp)
+```
+
+The tidy dataset now has three columns — `country`, `year`, and `gdp_millions` — with each row representing one observation (one country in one year).
+
+## 4 — Analysis
+
+**Goal:** Compare GDP growth trajectories across countries from 1970 to 2020.
+
+### Summary Table
+
+```{r summary-table}
+gdp_summary <- tidy_gdp |>
+  group_by(country) |>
+  summarise(
+    gdp_1970       = gdp_millions[year == 1970],
+    gdp_2020       = gdp_millions[year == 2020],
+    growth_factor  = round(gdp_2020 / gdp_1970, 1),
+    .groups = "drop"
+  ) |>
+  arrange(desc(growth_factor))
+
+gdp_summary
+```
+
+### Visualization
+
+```{r gdp-plot, fig.width=10, fig.height=6}
+ggplot(tidy_gdp, aes(x = year, y = gdp_millions / 1e6, color = country)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Nominal GDP by Country (1970–2020)",
+    x     = "Year",
+    y     = "GDP (Trillions USD)",
+    color = "Country"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right")
+```
+
+## 5 — Conclusions
+
+The **United States** maintained the largest GDP throughout the entire period, growing roughly 20-fold from \$1.07 trillion in 1970 to \$21.06 trillion in 2020.
+
+However, the most dramatic growth story belongs to **China**, which grew over **159-fold** — from about \$93 billion to nearly \$14.7 trillion — overtaking Japan and Germany to become the world's second-largest economy.
+
+**South Korea** also showed remarkable growth, which grew over 183-fold, rising from under \$9 billion to over \$1.6 trillion.
+
+In contrast, **Brazil's** trajectory was uneven, peaking around 2010 before declining by 2020, illustrating how currency fluctuations and economic instability can affect nominal GDP rankings.

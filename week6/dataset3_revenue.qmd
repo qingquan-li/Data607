@@ -1,0 +1,133 @@
+---
+title: "Project 2 — Data Transformations: Quarterly Revenue by Company"
+author: "Qingquan Li"
+date: 03/08/2026
+format:
+  html:
+    toc: true
+    code-fold: true
+    theme: flatly
+execute:
+  echo: true
+  warning: false
+---
+
+## 1 — Data Source
+
+This dataset contains **quarterly revenue** (in billions USD) for five major technology companies (Apple, Microsoft, Amazon, Google, Meta) across eight quarters from Q1 2022 through Q4 2023. The figures were compiled from publicly available earnings reports.
+
+Source: Company quarterly earnings reports (SEC filings / investor relations pages).
+
+The dataset is **untidy** because the quarter columns (Q1_2022, Q2_2022, …) are values of a variable (quarter), not variable names.
+
+## 2 — Data Structure Before Tidying
+
+```{r load-libraries}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r import-raw}
+raw_rev <- read.csv("https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week6/data/dataset3_revenue.csv",
+                    check.names = FALSE)
+```
+
+```{r preview-raw}
+dim(raw_rev)
+head(raw_rev)
+str(raw_rev)
+```
+
+The raw dataset has **5 rows** (one per company) and **9 columns** (Company + 8 quarter columns). Each quarter column stores a revenue figure — this is wide format.
+
+## 3 — Transformation Steps
+
+```{r tidy-rev}
+tidy_rev <- raw_rev |>
+  # Step 1: Reshape from wide to long format
+  pivot_longer(
+    cols      = -Company,
+    names_to  = "quarter",
+    values_to = "revenue_billions"
+  ) |>
+  # Step 2: Rename columns to lowercase snake_case
+  rename(company = Company) |>
+  # Step 3: Separate quarter into quarter label and year
+  mutate(
+    year       = as.integer(sub(".*_(\\d{4})$", "\\1", quarter)),
+    qtr        = sub("_(\\d{4})$", "", quarter)
+  ) |>
+  # Step 4: Create an ordered factor for correct plotting order
+  mutate(quarter = factor(quarter,
+    levels = c("Q1_2022","Q2_2022","Q3_2022","Q4_2022",
+               "Q1_2023","Q2_2023","Q3_2023","Q4_2023"),
+    ordered = TRUE
+  )) |>
+  # Step 5: Remove any rows with missing values
+  drop_na(revenue_billions) |>
+  # Step 6: Sort by company and quarter
+  arrange(company, quarter)
+```
+
+```{r preview-tidy}
+head(tidy_rev, 10)
+str(tidy_rev)
+```
+
+The tidy dataset now has columns `company`, `quarter`, `revenue_billions`, `year`, and `qtr`, with each row representing one observation (one company in one quarter).
+
+## 4 — Analysis
+
+**Goal:** Compare quarterly revenue trends across the five tech companies.
+
+### Summary Table
+
+```{r summary-table}
+rev_summary <- tidy_rev |>
+  group_by(company) |>
+  summarise(
+    avg_revenue = round(mean(revenue_billions), 1),
+    min_revenue = min(revenue_billions),
+    max_revenue = max(revenue_billions),
+    yoy_growth  = round(
+      (mean(revenue_billions[year == 2023]) /
+       mean(revenue_billions[year == 2022]) - 1) * 100, 1
+    ),
+    .groups = "drop"
+  ) |>
+  arrange(desc(avg_revenue))
+
+rev_summary
+```
+
+### Visualization
+
+```{r rev-plot, fig.width=10, fig.height=6}
+ggplot(tidy_rev, aes(x = quarter, y = revenue_billions, color = company, group = company)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Quarterly Revenue by Company (2022–2023)",
+    x     = "Quarter",
+    y     = "Revenue (Billions USD)",
+    color = "Company"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
+```
+
+## 5 — Conclusions
+
+**Amazon** leads in total revenue, averaging about \$136 billion per quarter, driven by its diversified e-commerce and cloud business.
+
+All five companies show a consistent **Q4 seasonal spike**, reflecting holiday-season consumer spending — this pattern is especially pronounced for Apple and Amazon.
+
+Year-over-year, **Meta** showed the strongest growth at 15.6%.
+
+**Microsoft** demonstrated steady, consistent growth across most quarters, likely fueled by increasing demand for its Azure cloud and AI services.
+
+**Apple's** revenue remained relatively flat year-over-year, reflecting a maturing smartphone market.
