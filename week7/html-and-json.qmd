@@ -1,0 +1,18 @@
+---
+title: "html-and-json"
+format: html
+---
+
+# Approach
+
+The goal of this assignment is to practice creating and reading two common data exchange formats, HTML and JSON, and loading them into R data frames.
+
+I selected three books in the DevOps domain: *The Phoenix Project*, *The Unicorn Project*, and *The DevOps Handbook*. For each book I recorded the title, authors, publication year, publisher, and ISBN. Each has multiple authors.
+
+My approach:
+
+1. Create `books.html` with a simple HTML table and `books.json` with a JSON
+   array, both containing the same data.
+2. Use the `rvest` package to parse the HTML table and the `jsonlite` package to
+   parse the JSON file, loading each into its own data frame.
+3. Compare the two data frames to check whether they are identical.
