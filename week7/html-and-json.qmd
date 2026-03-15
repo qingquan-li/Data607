@@ -3,16 +3,93 @@ title: "html-and-json"
 format: html
 ---
 
-# Approach
+## Introduction
 
-The goal of this assignment is to practice creating and reading two common data exchange formats, HTML and JSON, and loading them into R data frames.
+The goal of this assignment is to practice creating and reading two common data exchange formats, HTML and JSON, and loading them into R data frames. Finally, to compare the two data frames and determine whether they are identical.
 
 I selected three books in the DevOps domain: *The Phoenix Project*, *The Unicorn Project*, and *The DevOps Handbook*. For each book I recorded the title, authors, publication year, publisher, and ISBN. Each has multiple authors.
 
 My approach:
 
-1. Create `books.html` with a simple HTML table and `books.json` with a JSON
-   array, both containing the same data.
-2. Use the `rvest` package to parse the HTML table and the `jsonlite` package to
-   parse the JSON file, loading each into its own data frame.
-3. Compare the two data frames to check whether they are identical.
+1.  Create `books.html` with a simple HTML table and `books.json` with a JSON array, both containing the same data.
+2.  Use the `rvest` package to parse the HTML table and the `jsonlite` package to parse the JSON file, loading each into its own data frame.
+3.  Compare the two data frames to check whether they are identical.
+
+
+```{r setup, message=FALSE, warning=FALSE}
+library(rvest)
+library(jsonlite)
+library(dplyr)
+library(knitr)
+```
+
+## Solution
+
+### 1 -- Load the HTML data
+
+The `rvest` package makes it easy to read an HTML table directly into a data
+frame with `read_html()` and `html_table()`.
+
+```{r load-html}
+html_raw <- read_html("books.html")
+
+df_html <- html_raw |>
+  html_table() |>
+  _[[1]]            # extract the first (and only) table
+
+# Ensure Year is integer for a fair comparison later
+df_html$Year <- as.integer(df_html$Year)
+
+kable(df_html, caption = "Books loaded from HTML")
+```
+
+### 2 -- Load the JSON data
+
+The `jsonlite` package converts a JSON array of objects into a data frame with
+`fromJSON()`.
+
+```{r load-json}
+df_json <- fromJSON("books.json")
+
+kable(df_json, caption = "Books loaded from JSON")
+```
+
+### 3 -- Compare the two data frames
+
+We can check structural equality with `all.equal()` and exact equality with the
+`identical()` function.
+
+```{r compare}
+# Quick structure check
+str(df_html)
+str(df_json)
+
+# Detailed comparison
+all_equal_result <- all.equal(df_html, df_json)
+cat("all.equal() result:", all_equal_result, "\n")
+
+identical_result <- identical(df_html, df_json)
+cat("identical() result:", identical_result, "\n")
+```
+
+If the two are not perfectly `identical()`, it is often because `rvest` returns a
+tibble while `jsonlite` returns a plain data frame, or because column types
+differ slightly. We can reconcile this:
+
+```{r reconcile}
+# Convert both to plain data frames with matching types
+df_html_plain <- as.data.frame(df_html, stringsAsFactors = FALSE)
+df_json_plain <- as.data.frame(df_json, stringsAsFactors = FALSE)
+
+# Ensure Year is integer in both
+df_html_plain$Year <- as.integer(df_html_plain$Year)
+df_json_plain$Year <- as.integer(df_json_plain$Year)
+
+cat("identical() after normalization:", identical(df_html_plain, df_json_plain), "\n")
+```
+
+## Conclusion
+
+Both files were loaded successfully and, after normalizing the data frame class and column types, the two data frames turned out to be identical. This confirms that the same information was faithfully represented in both HTML and JSON formats.
+
+Overall, this assignment reinforced the importance of understanding how different file formats encode data and how R packages translate those encodings into data frames.

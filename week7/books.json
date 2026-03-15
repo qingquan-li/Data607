@@ -1,0 +1,23 @@
+[
+  {
+    "Title": "The Phoenix Project",
+    "Authors": "Gene Kim, Kevin Behr, George Spafford",
+    "Year": 2013,
+    "Publisher": "IT Revolution Press",
+    "ISBN": "978-0988262591"
+  },
+  {
+    "Title": "The Unicorn Project",
+    "Authors": "Gene Kim",
+    "Year": 2019,
+    "Publisher": "IT Revolution Press",
+    "ISBN": "978-1942788768"
+  },
+  {
+    "Title": "The DevOps Handbook",
+    "Authors": "Gene Kim, Jez Humble, Patrick Debois, John Willis",
+    "Year": 2016,
+    "Publisher": "IT Revolution Press",
+    "ISBN": "978-1942788003"
+  }
+]
