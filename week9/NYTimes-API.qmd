@@ -3,3 +3,15 @@ title: "NYTimes-API"
 format: html
 ---
 
+# Approach
+
+**API Selected:** [New York Times Article Search API](https://developer.nytimes.com/docs/articlesearch-product/1/overview)
+
+**Research Question:**
+
+How has New York Times coverage of "artificial intelligence" changed over the past five years, and which newspaper sections publish AI stories most frequently?
+
+**Planned Approach:**
+
+1.  I will query the Article Search API for articles matching "artificial intelligence" across five one-year windows (2021-2025), collecting up to 100 articles per year (10 pages of 10 results).
+2.  Then parse the JSON responses into a tidy data frame, visualize the year-over-year trend in article volume, and break the data down by newspaper section to see where AI coverage concentrates.
