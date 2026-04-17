@@ -1,0 +1,5 @@
+---
+title: "10b-more-json-practice-with-nobelprize-org"
+format: html
+---
+
