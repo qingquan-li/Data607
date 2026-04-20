@@ -1,5 +1,186 @@
 ---
 title: "10b-more-json-practice-with-nobelprize-org"
-format: html
+format:
+  html:
+    toc: true
+  pdf:
+    latex-engine: pdflatex
+execute:
+  warning: false
+  message: false
 ---
 
+## Introduction
+
+This assignment uses the public Nobel Prize API (v1) at
+`http://api.nobelprize.org/v1/`. Two JSON endpoints are consumed:
+
+- `prize.json` — one record per prize (year + category) with nested laureates
+- `laureate.json` — one record per laureate with nested prizes and affiliations
+
+Both are pulled, flattened into tidy data frames, and used to answer four
+questions below.
+
+```{r setup}
+library(tidyverse)
+library(jsonlite)
+
+# Pull both endpoints once
+prizes_raw    <- fromJSON("http://api.nobelprize.org/v1/prize.json",
+                          simplifyVector = FALSE)
+laureates_raw <- fromJSON("http://api.nobelprize.org/v1/laureate.json",
+                          simplifyVector = FALSE)
+```
+
+### Tidy the prize data
+
+Each prize has a list of laureates, so we unnest it into one row per
+laureate-prize.
+
+```{r tidy-prizes}
+prizes_df <- tibble(prize = prizes_raw$prizes) |>
+  unnest_wider(prize) |>
+  mutate(year = as.integer(year)) |>
+  unnest_longer(laureates) |>       # one row per laureate on each prize
+  unnest_wider(laureates) |>
+  filter(!is.na(id))                # drop years with no laureates (e.g., war years)
+
+glimpse(prizes_df)
+```
+
+### Tidy the laureate data
+
+```{r tidy-laureates}
+laureates_df <- tibble(l = laureates_raw$laureates) |>
+  unnest_wider(l) |>
+  mutate(id = as.character(id))
+
+# One row per (laureate, prize) with affiliation info for Q4
+lp_df <- laureates_df |>
+  select(id, firstname, surname, gender, bornCountry, prizes) |>
+  unnest_longer(prizes) |>
+  unnest_wider(prizes, names_sep = "_") |>
+  mutate(prize_year = as.integer(prizes_year))
+
+glimpse(lp_df)
+```
+
+---
+
+## Question 1: Which category has awarded the most Nobel Prizes?
+
+A simple count of laureates by category.
+
+```{r q1}
+q1 <- prizes_df |>
+  count(category, sort = TRUE)
+q1
+```
+
+```{r q1-plot, fig.height=3}
+ggplot(q1, aes(reorder(category, n), n)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(x = NULL, y = "Laureates", title = "Nobel laureates by category")
+```
+
+---
+
+## Question 2: How has the number of laureates per decade changed over time?
+
+```{r q2, fig.height=3}
+q2 <- prizes_df |>
+  mutate(decade = (year %/% 10) * 10) |>
+  count(decade)
+
+ggplot(q2, aes(decade, n)) +
+  geom_line() + geom_point() +
+  labs(x = "Decade", y = "Laureates",
+       title = "Nobel laureates per decade")
+q2
+```
+
+The count rises over time, reflecting the modern practice of splitting
+prizes among multiple laureates.
+
+---
+
+## Question 3: What is the gender distribution within each category?
+
+This joins laureate-level gender with prize-level category.
+
+```{r q3}
+# Join gender from laureates_df onto prizes_df by laureate id
+q3 <- prizes_df |>
+  mutate(id = as.character(id)) |>
+  left_join(select(laureates_df, id, gender), by = "id") |>
+  filter(gender %in% c("male", "female")) |>     # drop organizations
+  count(category, gender) |>
+  group_by(category) |>
+  mutate(pct_female = round(100 * n[gender == "female"] / sum(n), 1)) |>
+  ungroup()
+q3
+```
+
+```{r q3-plot, fig.height=3}
+ggplot(q3, aes(category, n, fill = gender)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "Share", title = "Gender share by category") +
+  coord_flip()
+```
+
+Peace and Literature have the highest share of female laureates; Physics
+and Economics have the lowest.
+
+---
+
+## Question 4: Which country has "lost" the most laureates?
+
+The advanced question: find laureates **born** in one country but
+**affiliated** with a different country at the time of the award. This
+requires unnesting prize affiliations and comparing against born country.
+
+```{r q4}
+# Unnest affiliations inside each prize
+brain_drain <- lp_df |>
+  select(id, bornCountry, prize_year, prizes_category, prizes_affiliations) |>
+  unnest_longer(prizes_affiliations) |>
+  unnest_wider(prizes_affiliations, names_sep = "_") |>
+  rename(affil_country = prizes_affiliations_country) |>
+  filter(!is.na(bornCountry),
+         !is.na(affil_country),
+         nzchar(bornCountry),
+         nzchar(affil_country),
+         bornCountry != affil_country) |>
+  distinct(id, bornCountry, affil_country)       # one row per laureate move
+
+q4 <- brain_drain |>
+  count(bornCountry, sort = TRUE) |>
+  slice_head(n = 10)
+q4
+```
+
+```{r q4-plot, fig.height=3}
+ggplot(q4, aes(reorder(bornCountry, n), n)) +
+  geom_col(fill = "firebrick") +
+  coord_flip() +
+  labs(x = NULL, y = "Laureates lost",
+       title = "Top 10 countries losing Nobel laureates to other countries")
+```
+
+Germany (Germany and Germany (now Poland)) tops the list — largely because many scientists born in the
+pre-war German Empire were affiliated with U.S. or U.K. institutions by
+the time they won, reflecting the 20th-century migration of scientific
+talent.
+
+---
+
+## Summary
+
+| # | Question | Answer |
+|---|----------|--------|
+| 1 | Most-awarded category | Medicine / Physics (largest counts) |
+| 2 | Laureates per decade | Rising trend, peaking in recent decades |
+| 3 | Gender balance | Peace & Literature most balanced; Physics least |
+| 4 | Biggest "brain drain" | Germany |
