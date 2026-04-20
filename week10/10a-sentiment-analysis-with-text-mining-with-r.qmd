@@ -1,5 +1,168 @@
 ---
 title: "10a-sentiment-analysis-with-text-mining-with-r"
-format: html
+format:
+    html:
+      toc: true
+      embed-resources: true
+    pdf:
+      pdf-engine: pdflatex
+      geometry: margin=1in
 ---
+
+# Introduction
+
+This assignment reproduces the sentiment analysis example from Chapter 2 of
+*Text Mining with R* (Silge & Robinson, 2017) and extends it with a new
+corpus and an additional sentiment lexicon.
+
+**Citation:** Silge, J., & Robinson, D. (2017). *Text Mining with R: A Tidy
+Approach*. O'Reilly Media. Chapter 2: Sentiment Analysis with Tidy Data.
+Available at https://www.tidytextmining.com/sentiment. The code in Part 1
+is adapted directly from that chapter.
+
+# Setup
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidytext)
+library(janeaustenr)
+library(gutenbergr)
+```
+
+# Part 1: Reproducing the Base Example
+
+The Chapter 2 example tokenizes Jane Austen's novels, joins each token with
+the `bing` lexicon, and plots net sentiment (positive minus negative) across
+80-line sections of each book.
+
+```{r reproduce, message=FALSE, warning=FALSE}
+tidy_books <- austen_books() %>%
+  group_by(book) %>%
+  mutate(
+    linenumber = row_number(),
+    chapter = cumsum(str_detect(text, 
+                                regex("^chapter [\\divxlc]", 
+                                      ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+
+jane_austen_sentiment <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(book, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+ggplot(jane_austen_sentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+```
+
+This reproduces Figure 2.2 of the book.
+
+# Part 2: Extension
+
+## New Corpus
+
+We pull *The Adventures of Sherlock Holmes* (Arthur Conan Doyle, 1892) from
+Project Gutenberg (ID 1661).
+
+```{r corpus, message=FALSE, warning=FALSE}
+holmes <- gutenberg_download(1661, mirror = "https://gutenberg.pglaf.org/")
+
+tidy_holmes <- holmes |>
+  mutate(linenumber = row_number()) |>
+  unnest_tokens(word, text)
+```
+
+## Additional Lexicon: Loughran-McDonald
+
+The Loughran-McDonald lexicon (Loughran & McDonald, 2011) was developed for
+financial and regulatory text (10-K filings, earnings releases). It is
+distributed with `tidytext` but is *not* used in the Chapter 2 example, so
+we treat it as our additional lexicon. It classifies words into six
+categories: `positive`, `negative`, `litigious`, `uncertainty`,
+`constraining`, and `superfluous`. For comparability we keep only the
+positive/negative categories.
+
+**Citation:** Loughran, T., & McDonald, B. (2011). When is a liability not
+a liability? Textual analysis, dictionaries, and 10-Ks. *Journal of
+Finance*, 66(1), 35-65.
+
+## Comparing Four Lexicons on Sherlock Holmes
+
+We score net sentiment over 80-line sections using `bing`, `nrc`, `afinn`,
+and `loughran`. For `afinn` we binarize the integer scores (non-negative =
+positive) so all four are on the same footing.
+
+```{r compare, fig.width=8, fig.height=6, message=FALSE, warning=FALSE}
+binary <- function(lex) {
+  s <- get_sentiments(lex)
+  if (lex == "afinn") {
+    s |> transmute(word, sentiment = if_else(value >= 0, "positive", "negative"))
+  } else {
+    s |> filter(sentiment %in% c("positive", "negative"))
+  }
+}
+
+score <- function(lex) {
+  tidy_holmes |>
+    inner_join(binary(lex), by = "word", relationship = "many-to-many") |>
+    count(index = linenumber %/% 80, sentiment) |>
+    pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |>
+    mutate(sentiment = positive - negative, lexicon = lex)
+}
+
+holmes_compare <- bind_rows(
+  score("bing"),
+  score("nrc"),
+  score("afinn"),
+  score("loughran")
+)
+
+ggplot(holmes_compare, aes(index, sentiment, fill = lexicon)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~lexicon, ncol = 2, scales = "free_y") +
+  labs(title = "Sentiment through 'The Adventures of Sherlock Holmes'",
+       x = "Narrative time (80-line sections)",
+       y = "Net sentiment")
+```
+
+## Summary Statistics
+
+```{r summary, message=FALSE}
+holmes_compare |>
+  group_by(lexicon) |>
+  summarise(
+    mean_net = round(mean(sentiment), 2),
+    sd_net   = round(sd(sentiment), 2),
+    pct_neg  = round(mean(sentiment < 0) * 100, 1)
+  )
+```
+
+## How Do the Results Differ?
+
+- **nrc** shows a strong positive bias because its positive category
+  contains many common everyday words. Holmes looks overwhelmingly
+  positive under `nrc`, even in chapters built around murder and
+  blackmail.
+- **bing** is more balanced and picks up the darker plot points that
+  `nrc` washes out. This matches what Silge and Robinson observe in
+  Section 2.3.
+- **afinn**, once binarized, looks similar to `bing` in shape. The raw
+  integer weights (dropped here for comparability) would make it more
+  sensitive to a single strongly negative word per section.
+- **loughran** was trained on corporate filings, so most of its
+  vocabulary (`litigation`, `restructuring`, `impairment`) does not
+  appear in a Victorian detective story. Its signal is sparse and mostly
+  negative, driven by crime-adjacent overlap words like `crime`,
+  `guilty`, and `suspicious`. This illustrates a key point: sentiment
+  lexicons are domain-specific, and applying a finance lexicon to
+  fiction under-counts sentiment and misses most of the emotional
+  texture of the text.
+
+The broader takeaway is the same one the book makes for Jane Austen: the
+choice of lexicon materially changes the story you tell about a text, so
+comparing multiple lexicons is more informative than trusting any single
+one.
+
 
