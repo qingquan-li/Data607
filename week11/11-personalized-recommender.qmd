@@ -3,3 +3,13 @@ title: "11-personalized-recommender"
 format: html
 ---
 
+# Approach
+
+Survey data: <https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week3-assignment/data/movie_ratings.csv>
+
+-   **Algorithm: User-to-User Collaborative Filtering** — recommend movies a user hasn't seen based on what *similar-taste* users rated highly.
+-   **Build a rating matrix**: rows = users, columns = movies, cells = ratings (some missing).
+-   **Measure user similarity**: for each pair of users, use Pearson correlation on the movies they both rated.
+-   **Predict a missing rating**: take the target user's average rating, then nudge it up or down based on how similar users rated that movie (weighted by similarity).
+-   **Recommend Top-N**: for each user, rank their *unseen* movies by predicted rating and return the top few.
+-   **Evaluate with Leave-One-Out CV**: hide one known rating at a time, predict it, compare to the real value, then report RMSE and MAE across all 24 ratings.
