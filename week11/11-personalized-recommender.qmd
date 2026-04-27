@@ -1,15 +1,114 @@
 ---
 title: "11-personalized-recommender"
-format: html
+format:
+    html:
+      toc: true
 ---
 
-# Approach
+## Introduction
 
-Survey data: <https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week3-assignment/data/movie_ratings.csv>
+### Algorithm
 
--   **Algorithm: User-to-User Collaborative Filtering** — recommend movies a user hasn't seen based on what *similar-taste* users rated highly.
--   **Build a rating matrix**: rows = users, columns = movies, cells = ratings (some missing).
--   **Measure user similarity**: for each pair of users, use Pearson correlation on the movies they both rated.
--   **Predict a missing rating**: take the target user's average rating, then nudge it up or down based on how similar users rated that movie (weighted by similarity).
--   **Recommend Top-N**: for each user, rank their *unseen* movies by predicted rating and return the top few.
--   **Evaluate with Leave-One-Out CV**: hide one known rating at a time, predict it, compare to the real value, then report RMSE and MAE across all 24 ratings.
+**User-to-User Collaborative Filtering** (User-user CF) with Pearson correlation — recommend movies a user hasn't seen based on what similar-taste users rated highly.
+
+1. Find your taste twins — look at all other users and measure how similarly they rate movies compared to you.
+2. Borrow their opinions — for a movie you haven't seen, check what your taste twins thought of it.
+3. Predict your rating — combine their ratings, giving more weight to users more similar to you.
+
+
+### Approach
+
+- **Input:** A 5-user x 6-movie rating matrix with 6 missing entries.
+- **Build a rating matrix**: rows = users, columns = movies, cells = ratings (some missing).
+- **Output:**
+  - **Predict a missing rating**: take the target user's average rating, then nudge it up or down based on how similar users rated that movie (weighted by similarity).
+  - **Recommend Top-N**: for each user, rank their *unseen* movies by predicted rating and return the top few.
+- **Evaluate with Leave-One-Out CV**: hide one known rating at a time, predict it, compare to the real value, then report RMSE and MAE across all 24 ratings.
+
+## Solution
+
+### Load the data
+
+```{r, message=FALSE}
+library(knitr)
+movie_ratings <- "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week3-assignment/data/movie_ratings.csv"
+ratings <- read.csv(movie_ratings, check.names = FALSE, row.names = 1)
+R <- as.matrix(ratings)
+kable(R, caption = "Original rating matrix (NA = unrated)")
+```
+
+### User-user CF predictor
+
+For a target user `u` and item `i`, we predict
+
+\[
+\hat r_{u,i} \;=\; \bar r_u \;+\; \frac{\sum_v \text{sim}(u,v)\,(r_{v,i} - \bar r_v)}{\sum_v |\text{sim}(u,v)|}
+\]
+
+where the sum runs over users who rated `i`, and `sim(u,v)` is the Pearson correlation computed on items both users rated in common.
+
+```{r}
+predict_uu <- function(R, u, i) {
+  u_mean <- mean(R[u, ], na.rm = TRUE)
+  sims <- c(); devs <- c()
+  for (v in setdiff(rownames(R), u)) {
+    if (is.na(R[v, i])) next
+    common <- !is.na(R[u, ]) & !is.na(R[v, ])
+    if (sum(common) < 2) next
+    a <- R[u, common] - mean(R[u, common])
+    b <- R[v, common] - mean(R[v, common])
+    denom <- sqrt(sum(a^2)) * sqrt(sum(b^2))
+    if (denom == 0) next
+    sims <- c(sims, sum(a * b) / denom)
+    devs <- c(devs, R[v, i] - mean(R[v, ], na.rm = TRUE))
+  }
+  if (length(sims) == 0 || sum(abs(sims)) == 0) return(u_mean)
+  u_mean + sum(sims * devs) / sum(abs(sims))
+}
+```
+
+### Predicted ratings and Top-N recommendations
+
+```{r}
+P <- R
+for (u in rownames(R)) for (i in colnames(R)) {
+  if (is.na(R[u, i])) P[u, i] <- predict_uu(R, u, i)
+}
+kable(round(P, 2), caption = "Filled matrix (predictions replace NAs)")
+
+topn <- function(u, n = 2) {
+  mask <- is.na(R[u, ])
+  if (!any(mask)) return("(no unseen items)")
+  unseen <- colnames(R)[mask]
+  preds <- setNames(P[u, unseen], unseen)   # keep names even if length 1
+  preds <- sort(preds, decreasing = TRUE)
+  k <- min(n, length(preds))
+  paste0(names(preds)[1:k], " (", sprintf("%.2f", preds[1:k]), ")",
+         collapse = "; ")
+}
+recs <- data.frame(User = rownames(R),
+                   Top2 = sapply(rownames(R), topn, n = 2))
+kable(recs, row.names = FALSE, caption = "Top-2 recommendations per user (drawn only from movies that user has not rated)")
+```
+
+### Evaluation: Leave-One-Out CV
+
+```{r}
+known <- which(!is.na(R), arr.ind = TRUE)
+errs <- numeric(nrow(known))
+for (k in seq_len(nrow(known))) {
+  r <- known[k, 1]; c <- known[k, 2]
+  R_tr <- R; R_tr[r, c] <- NA
+  errs[k] <- R[r, c] - predict_uu(R_tr, rownames(R)[r], colnames(R)[c])
+}
+cat(sprintf("Held-out ratings: %d\nRMSE: %.3f\nMAE:  %.3f\n",
+            length(errs), sqrt(mean(errs^2)), mean(abs(errs))))
+```
+
+
+## Conclusion
+
+- **Held-out ratings: 24** — we ran the test 24 times, each time hiding one of the 24 known ratings (30 − 6 = 24 known ratings), predicting it from the remaining data, and comparing to the true value.
+- **MAE: 0.667** — on average, the predicted rating is off by about **0.67 stars** (on a 1–5 scale). So if the true rating is 4, the model typically guesses somewhere between 3.3 and 4.7.
+- **RMSE: 0.840** — similar to MAE, but squares the errors before averaging, so it **penalizes big misses more heavily**. RMSE > MAE means a few predictions were noticeably further off than the typical case.
+- **Takeaway**: an average error under 1 star on a 1–5 scale is reasonable (acceptable) for such a tiny dataset (5 users, 6 movies) — the model is clearly learning preferences, not guessing randomly, but the small sample limits accuracy.

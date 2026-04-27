@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -39,10 +74,30 @@ ul.task-list li input[type="checkbox"] {
 
 </head>
 
-<body class="fullcontent quarto-light">
+<body class="quarto-light">
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
-
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a>
+  <ul class="collapse">
+  <li><a href="#algorithm" id="toc-algorithm" class="nav-link" data-scroll-target="#algorithm">Algorithm</a></li>
+  <li><a href="#approach" id="toc-approach" class="nav-link" data-scroll-target="#approach">Approach</a></li>
+  </ul></li>
+  <li><a href="#solution" id="toc-solution" class="nav-link" data-scroll-target="#solution">Solution</a>
+  <ul class="collapse">
+  <li><a href="#load-the-data" id="toc-load-the-data" class="nav-link" data-scroll-target="#load-the-data">Load the data</a></li>
+  <li><a href="#user-user-cf-predictor" id="toc-user-user-cf-predictor" class="nav-link" data-scroll-target="#user-user-cf-predictor">User-user CF predictor</a></li>
+  <li><a href="#predicted-ratings-and-top-n-recommendations" id="toc-predicted-ratings-and-top-n-recommendations" class="nav-link" data-scroll-target="#predicted-ratings-and-top-n-recommendations">Predicted ratings and Top-N recommendations</a></li>
+  <li><a href="#evaluation-leave-one-out-cv" id="toc-evaluation-leave-one-out-cv" class="nav-link" data-scroll-target="#evaluation-leave-one-out-cv">Evaluation: Leave-One-Out CV</a></li>
+  </ul></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+</div>
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
@@ -64,16 +119,295 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="approach" class="level1">
-<h1>Approach</h1>
-<p>Survey data: <a href="https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week3-assignment/data/movie_ratings.csv" class="uri">https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week3-assignment/data/movie_ratings.csv</a></p>
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<section id="algorithm" class="level3">
+<h3 class="anchored" data-anchor-id="algorithm">Algorithm</h3>
+<p><strong>User-to-User Collaborative Filtering</strong> (User-user CF) with Pearson correlation — recommend movies a user hasn’t seen based on what similar-taste users rated highly.</p>
+<ol type="1">
+<li>Find your taste twins — look at all other users and measure how similarly they rate movies compared to you.</li>
+<li>Borrow their opinions — for a movie you haven’t seen, check what your taste twins thought of it.</li>
+<li>Predict your rating — combine their ratings, giving more weight to users more similar to you.</li>
+</ol>
+</section>
+<section id="approach" class="level3">
+<h3 class="anchored" data-anchor-id="approach">Approach</h3>
 <ul>
-<li><strong>Algorithm: User-to-User Collaborative Filtering</strong> — recommend movies a user hasn’t seen based on what <em>similar-taste</em> users rated highly.</li>
+<li><strong>Input:</strong> A 5-user x 6-movie rating matrix with 6 missing entries.</li>
 <li><strong>Build a rating matrix</strong>: rows = users, columns = movies, cells = ratings (some missing).</li>
-<li><strong>Measure user similarity</strong>: for each pair of users, use Pearson correlation on the movies they both rated.</li>
+<li><strong>Output:</strong>
+<ul>
 <li><strong>Predict a missing rating</strong>: take the target user’s average rating, then nudge it up or down based on how similar users rated that movie (weighted by similarity).</li>
 <li><strong>Recommend Top-N</strong>: for each user, rank their <em>unseen</em> movies by predicted rating and return the top few.</li>
+</ul></li>
 <li><strong>Evaluate with Leave-One-Out CV</strong>: hide one known rating at a time, predict it, compare to the real value, then report RMSE and MAE across all 24 ratings.</li>
+</ul>
+</section>
+</section>
+<section id="solution" class="level2">
+<h2 class="anchored" data-anchor-id="solution">Solution</h2>
+<section id="load-the-data" class="level3">
+<h3 class="anchored" data-anchor-id="load-the-data">Load the data</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>movie_ratings <span class="ot">&lt;-</span> <span class="st">"https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/week3-assignment/data/movie_ratings.csv"</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>ratings <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(movie_ratings, <span class="at">check.names =</span> <span class="cn">FALSE</span>, <span class="at">row.names =</span> <span class="dv">1</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>R <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(ratings)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(R, <span class="at">caption =</span> <span class="st">"Original rating matrix (NA = unrated)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Original rating matrix (NA = unrated)</caption>
+<colgroup>
+<col style="width: 5%">
+<col style="width: 13%">
+<col style="width: 6%">
+<col style="width: 10%">
+<col style="width: 23%">
+<col style="width: 9%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Dune: Part Two</th>
+<th style="text-align: right;">Barbie</th>
+<th style="text-align: right;">Oppenheimer</th>
+<th style="text-align: right;">Killers of the Flower Moon</th>
+<th style="text-align: right;">The Batman</th>
+<th style="text-align: right;">Spider-Man: Across the Spider-Verse</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Alice</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ben</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">NA</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chloe</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">David</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Jacob</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="user-user-cf-predictor" class="level3">
+<h3 class="anchored" data-anchor-id="user-user-cf-predictor">User-user CF predictor</h3>
+<p>For a target user <code>u</code> and item <code>i</code>, we predict</p>
+<p>[ r_{u,i} ;=; r_u ;+; ]</p>
+<p>where the sum runs over users who rated <code>i</code>, and <code>sim(u,v)</code> is the Pearson correlation computed on items both users rated in common.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>predict_uu <span class="ot">&lt;-</span> <span class="cf">function</span>(R, u, i) {</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  u_mean <span class="ot">&lt;-</span> <span class="fu">mean</span>(R[u, ], <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  sims <span class="ot">&lt;-</span> <span class="fu">c</span>(); devs <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (v <span class="cf">in</span> <span class="fu">setdiff</span>(<span class="fu">rownames</span>(R), u)) {</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">is.na</span>(R[v, i])) <span class="cf">next</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    common <span class="ot">&lt;-</span> <span class="sc">!</span><span class="fu">is.na</span>(R[u, ]) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(R[v, ])</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">sum</span>(common) <span class="sc">&lt;</span> <span class="dv">2</span>) <span class="cf">next</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    a <span class="ot">&lt;-</span> R[u, common] <span class="sc">-</span> <span class="fu">mean</span>(R[u, common])</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    b <span class="ot">&lt;-</span> R[v, common] <span class="sc">-</span> <span class="fu">mean</span>(R[v, common])</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    denom <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">sum</span>(a<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">*</span> <span class="fu">sqrt</span>(<span class="fu">sum</span>(b<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (denom <span class="sc">==</span> <span class="dv">0</span>) <span class="cf">next</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    sims <span class="ot">&lt;-</span> <span class="fu">c</span>(sims, <span class="fu">sum</span>(a <span class="sc">*</span> b) <span class="sc">/</span> denom)</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    devs <span class="ot">&lt;-</span> <span class="fu">c</span>(devs, R[v, i] <span class="sc">-</span> <span class="fu">mean</span>(R[v, ], <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(sims) <span class="sc">==</span> <span class="dv">0</span> <span class="sc">||</span> <span class="fu">sum</span>(<span class="fu">abs</span>(sims)) <span class="sc">==</span> <span class="dv">0</span>) <span class="fu">return</span>(u_mean)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  u_mean <span class="sc">+</span> <span class="fu">sum</span>(sims <span class="sc">*</span> devs) <span class="sc">/</span> <span class="fu">sum</span>(<span class="fu">abs</span>(sims))</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="predicted-ratings-and-top-n-recommendations" class="level3">
+<h3 class="anchored" data-anchor-id="predicted-ratings-and-top-n-recommendations">Predicted ratings and Top-N recommendations</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>P <span class="ot">&lt;-</span> R</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (u <span class="cf">in</span> <span class="fu">rownames</span>(R)) <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">colnames</span>(R)) {</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.na</span>(R[u, i])) P[u, i] <span class="ot">&lt;-</span> <span class="fu">predict_uu</span>(R, u, i)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(<span class="fu">round</span>(P, <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Filled matrix (predictions replace NAs)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Filled matrix (predictions replace NAs)</caption>
+<colgroup>
+<col style="width: 5%">
+<col style="width: 13%">
+<col style="width: 6%">
+<col style="width: 10%">
+<col style="width: 23%">
+<col style="width: 9%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Dune: Part Two</th>
+<th style="text-align: right;">Barbie</th>
+<th style="text-align: right;">Oppenheimer</th>
+<th style="text-align: right;">Killers of the Flower Moon</th>
+<th style="text-align: right;">The Batman</th>
+<th style="text-align: right;">Spider-Man: Across the Spider-Verse</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Alice</td>
+<td style="text-align: right;">4.00</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">4.54</td>
+<td style="text-align: right;">5.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ben</td>
+<td style="text-align: right;">5.00</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">4.00</td>
+<td style="text-align: right;">4.11</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chloe</td>
+<td style="text-align: right;">4.29</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">4.2</td>
+<td style="text-align: right;">5.00</td>
+<td style="text-align: right;">5.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">David</td>
+<td style="text-align: right;">4.00</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4.2</td>
+<td style="text-align: right;">4.0</td>
+<td style="text-align: right;">3.00</td>
+<td style="text-align: right;">4.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Jacob</td>
+<td style="text-align: right;">5.00</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">4.9</td>
+<td style="text-align: right;">4.00</td>
+<td style="text-align: right;">5.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>topn <span class="ot">&lt;-</span> <span class="cf">function</span>(u, <span class="at">n =</span> <span class="dv">2</span>) {</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  mask <span class="ot">&lt;-</span> <span class="fu">is.na</span>(R[u, ])</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">any</span>(mask)) <span class="fu">return</span>(<span class="st">"(no unseen items)"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  unseen <span class="ot">&lt;-</span> <span class="fu">colnames</span>(R)[mask]</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  preds <span class="ot">&lt;-</span> <span class="fu">setNames</span>(P[u, unseen], unseen)   <span class="co"># keep names even if length 1</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  preds <span class="ot">&lt;-</span> <span class="fu">sort</span>(preds, <span class="at">decreasing =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="fu">min</span>(n, <span class="fu">length</span>(preds))</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">paste0</span>(<span class="fu">names</span>(preds)[<span class="dv">1</span><span class="sc">:</span>k], <span class="st">" ("</span>, <span class="fu">sprintf</span>(<span class="st">"%.2f"</span>, preds[<span class="dv">1</span><span class="sc">:</span>k]), <span class="st">")"</span>,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">collapse =</span> <span class="st">"; "</span>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>recs <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">User =</span> <span class="fu">rownames</span>(R),</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>                   <span class="at">Top2 =</span> <span class="fu">sapply</span>(<span class="fu">rownames</span>(R), topn, <span class="at">n =</span> <span class="dv">2</span>))</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(recs, <span class="at">row.names =</span> <span class="cn">FALSE</span>, <span class="at">caption =</span> <span class="st">"Top-2 recommendations per user (drawn only from movies that user has not rated)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Top-2 recommendations per user (drawn only from movies that user has not rated)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">User</th>
+<th style="text-align: left;">Top2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Alice</td>
+<td style="text-align: left;">The Batman (4.54)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Ben</td>
+<td style="text-align: left;">Spider-Man: Across the Spider-Verse (4.11)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chloe</td>
+<td style="text-align: left;">Dune: Part Two (4.29); Killers of the Flower Moon (4.20)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">David</td>
+<td style="text-align: left;">Oppenheimer (4.20)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Jacob</td>
+<td style="text-align: left;">Killers of the Flower Moon (4.90)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="evaluation-leave-one-out-cv" class="level3">
+<h3 class="anchored" data-anchor-id="evaluation-leave-one-out-cv">Evaluation: Leave-One-Out CV</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>known <span class="ot">&lt;-</span> <span class="fu">which</span>(<span class="sc">!</span><span class="fu">is.na</span>(R), <span class="at">arr.ind =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>errs <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="fu">nrow</span>(known))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(<span class="fu">nrow</span>(known))) {</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> known[k, <span class="dv">1</span>]; c <span class="ot">&lt;-</span> known[k, <span class="dv">2</span>]</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  R_tr <span class="ot">&lt;-</span> R; R_tr[r, c] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  errs[k] <span class="ot">&lt;-</span> R[r, c] <span class="sc">-</span> <span class="fu">predict_uu</span>(R_tr, <span class="fu">rownames</span>(R)[r], <span class="fu">colnames</span>(R)[c])</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"Held-out ratings: %d</span><span class="sc">\n</span><span class="st">RMSE: %.3f</span><span class="sc">\n</span><span class="st">MAE:  %.3f</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>            <span class="fu">length</span>(errs), <span class="fu">sqrt</span>(<span class="fu">mean</span>(errs<span class="sc">^</span><span class="dv">2</span>)), <span class="fu">mean</span>(<span class="fu">abs</span>(errs))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Held-out ratings: 24
+RMSE: 0.840
+MAE:  0.667</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
+<ul>
+<li><strong>Held-out ratings: 24</strong> — we ran the test 24 times, each time hiding one of the 24 known ratings (30 − 6 = 24 known ratings), predicting it from the remaining data, and comparing to the true value.</li>
+<li><strong>MAE: 0.667</strong> — on average, the predicted rating is off by about <strong>0.67 stars</strong> (on a 1–5 scale). So if the true rating is 4, the model typically guesses somewhere between 3.3 and 4.7.</li>
+<li><strong>RMSE: 0.840</strong> — similar to MAE, but squares the errors before averaging, so it <strong>penalizes big misses more heavily</strong>. RMSE &gt; MAE means a few predictions were noticeably further off than the typical case.</li>
+<li><strong>Takeaway</strong>: an average error under 1 star on a 1–5 scale is reasonable (acceptable) for such a tiny dataset (5 users, 6 movies) — the model is clearly learning preferences, not guessing randomly, but the small sample limits accuracy.</li>
 </ul>
 </section>
 
