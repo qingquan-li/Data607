@@ -230,9 +230,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="user-user-cf-predictor" class="level3">
 <h3 class="anchored" data-anchor-id="user-user-cf-predictor">User-user CF predictor</h3>
-<p>For a target user <code>u</code> and item <code>i</code>, we predict</p>
-<p>[ r_{u,i} ;=; r_u ;+; ]</p>
-<p>where the sum runs over users who rated <code>i</code>, and <code>sim(u,v)</code> is the Pearson correlation computed on items both users rated in common.</p>
+<p>LLM prompt</p>
+<blockquote class="blockquote">
+<p>Write an R function predict_uu(R, u, i) that implements user-to-user collaborative filtering. R is a user×item matrix with NA for missing ratings. Use Pearson correlation on commonly-rated items as the similarity. Predict the rating as the target user’s mean plus the similarity-weighted average of other users’ mean-centered deviations on item i. Skip neighbors with fewer than 2 commonly-rated items, and fall back to the user’s mean if no valid neighbors exist.</p>
+</blockquote>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>predict_uu <span class="ot">&lt;-</span> <span class="cf">function</span>(R, u, i) {</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  u_mean <span class="ot">&lt;-</span> <span class="fu">mean</span>(R[u, ], <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>

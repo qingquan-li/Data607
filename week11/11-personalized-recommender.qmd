@@ -39,13 +39,9 @@ kable(R, caption = "Original rating matrix (NA = unrated)")
 
 ### User-user CF predictor
 
-For a target user `u` and item `i`, we predict
+LLM prompt
 
-\[
-\hat r_{u,i} \;=\; \bar r_u \;+\; \frac{\sum_v \text{sim}(u,v)\,(r_{v,i} - \bar r_v)}{\sum_v |\text{sim}(u,v)|}
-\]
-
-where the sum runs over users who rated `i`, and `sim(u,v)` is the Pearson correlation computed on items both users rated in common.
+> Write an R function predict_uu(R, u, i) that implements user-to-user collaborative filtering. R is a user×item matrix with NA for missing ratings. Use Pearson correlation on commonly-rated items as the similarity. Predict the rating as the target user's mean plus the similarity-weighted average of other users' mean-centered deviations on item i. Skip neighbors with fewer than 2 commonly-rated items, and fall back to the user's mean if no valid neighbors exist.
 
 ```{r}
 predict_uu <- function(R, u, i) {
