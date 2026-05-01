@@ -1,0 +1,14 @@
+---
+title: "document-classification"
+format: html
+---
+
+# Approach
+
+1.  Get the data: download the `easy_ham` and `spam` archives from the SpamAssassin public corpus and extract them locally.
+2.  Load and label each e-mail file with its class (`ham` or `spam`).
+3.  Preprocess the text: lowercase, strip numbers and punctuation, remove English stopwords, and stem the remaining tokens.
+4.  Build a document-term matrix (rows = e-mails, columns = tokens) and drop tokens that are too rare to be informative.
+5.  Split 75 / 25 into train and test sets so the model is evaluated on documents it has never seen.
+6.  Fit a Naive Bayes classifier. Naive Bayes treats each token as independent evidence for or against "spam" and combines them with Bayes' rule -- it is the textbook baseline for bag-of-words spam filtering because it is fast, simple, and surprisingly competitive.
+7.  Evaluate with a confusion matrix and accuracy / precision / recall, then peek at the most informative tokens as a sanity check.
