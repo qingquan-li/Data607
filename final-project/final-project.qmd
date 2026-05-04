@@ -1,0 +1,10 @@
+---
+title: "final-project"
+format: html
+---
+
+# Proposal
+
+This project investigates what drives variation in electricity consumption and cost across NYC public housing developments from 2010 through September 2025, motivated by the practical question of whether usage and billing patterns are best explained by weather, location (borough/development), or longer-term time trends — insight that could inform energy efficiency investment and budget forecasting. The primary data source is NYC OpenData's Electric Consumption And Cost (2010 – Sep 2025) dataset, pulled via the Socrata Open Data API, which I'll join with monthly weather observations from the NOAA Climate Data Online REST API for NYC stations to derive heating- and cooling-degree-day context. Following an OSEMN workflow in R/Quarto, I will clean and reshape the billing records (parse service start/end dates, aggregate to monthly kWh and cost per development, pivot between long and wide forms), join the two sources on year-month and borough, then run exploratory time-series and seasonality visualizations and fit a regression model of consumption on weather, borough, and building characteristics. The final deliverable will be a reproducible Quarto report with code on GitHub.
+
+Dataset: https://data.cityofnewyork.us/Housing-Development/Electric-Consumption-And-Cost-2010-Sep-2025-/jr24-e7cr/about_data
