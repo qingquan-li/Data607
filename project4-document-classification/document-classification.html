@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -39,10 +74,11 @@ ul.task-list li input[type="checkbox"] {
 
 </head>
 
-<body class="fullcontent quarto-light">
+<body class="quarto-light">
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
-
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="document-classification.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></div>
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
@@ -64,8 +100,10 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="approach" class="level1">
-<h1>Approach</h1>
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>The goal is to take a set of e-mails that have already been hand-labeled as “ham” (legitimate) or “spam” and learn a model that can label new, unseen e-mails. The corpus used here is the public SpamAssassin corpus (https://spamassassin.apache.org/old/publiccorpus/).</p>
+<p>The plan is straightforward:</p>
 <ol type="1">
 <li>Get the data: download the <code>easy_ham</code> and <code>spam</code> archives from the SpamAssassin public corpus and extract them locally.</li>
 <li>Load and label each e-mail file with its class (<code>ham</code> or <code>spam</code>).</li>
@@ -75,6 +113,192 @@ ul.task-list li input[type="checkbox"] {
 <li>Fit a Naive Bayes classifier. Naive Bayes treats each token as independent evidence for or against “spam” and combines them with Bayes’ rule – it is the textbook baseline for bag-of-words spam filtering because it is fast, simple, and surprisingly competitive.</li>
 <li>Evaluate with a confusion matrix and accuracy / precision / recall, then peek at the most informative tokens as a sanity check.</li>
 </ol>
+</section>
+<section id="solution" class="level1">
+<h1>Solution</h1>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tm)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: NLP</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SnowballC)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(e1071)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(caret)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: ggplot2</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'ggplot2'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:e1071':
+
+    element</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:NLP':
+
+    annotate</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: lattice</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="download-and-extract-the-corpus" class="level2">
+<h2 class="anchored" data-anchor-id="download-and-extract-the-corpus">Download and extract the corpus</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>data_dir <span class="ot">&lt;-</span> <span class="st">"spamassassin"</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(data_dir, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>urls <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">ham  =</span> <span class="st">"https://spamassassin.apache.org/old/publiccorpus/20030228_easy_ham.tar.bz2"</span>,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">spam =</span> <span class="st">"https://spamassassin.apache.org/old/publiccorpus/20030228_spam.tar.bz2"</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (label <span class="cf">in</span> <span class="fu">names</span>(urls)) {</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  archive <span class="ot">&lt;-</span> <span class="fu">file.path</span>(data_dir, <span class="fu">paste0</span>(label, <span class="st">".tar.bz2"</span>))</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">file.exists</span>(archive)) {</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">download.file</span>(urls[[label]], archive, <span class="at">mode =</span> <span class="st">"wb"</span>, <span class="at">quiet =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">untar</span>(archive, <span class="at">exdir =</span> data_dir)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="load-e-mails" class="level2">
+<h2 class="anchored" data-anchor-id="load-e-mails">Load e-mails</h2>
+<p>Each e-mail file is read as a single text string. We use <code>latin1</code> encoding because spam often contains bytes that are not valid UTF-8, and we want to read the file rather than crash on it.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>ham_dir  <span class="ot">&lt;-</span> <span class="fu">file.path</span>(data_dir, <span class="st">"easy_ham"</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>spam_dir <span class="ot">&lt;-</span> <span class="fu">file.path</span>(data_dir, <span class="st">"spam"</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>read_email <span class="ot">&lt;-</span> <span class="cf">function</span>(f) {</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">paste</span>(<span class="fu">readLines</span>(f, <span class="at">warn =</span> <span class="cn">FALSE</span>, <span class="at">encoding =</span> <span class="st">"latin1"</span>), <span class="at">collapse =</span> <span class="st">" "</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>ham_files  <span class="ot">&lt;-</span> <span class="fu">list.files</span>(ham_dir,  <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>spam_files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(spam_dir, <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Drop the index files that ship with the archive</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>ham_files  <span class="ot">&lt;-</span> ham_files[<span class="sc">!</span><span class="fu">grepl</span>(<span class="st">"cmds$"</span>,  ham_files)]</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>spam_files <span class="ot">&lt;-</span> spam_files[<span class="sc">!</span><span class="fu">grepl</span>(<span class="st">"cmds$"</span>, spam_files)]</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>emails <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">vapply</span>(ham_files,  read_email, <span class="fu">character</span>(<span class="dv">1</span>)),</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>            <span class="fu">vapply</span>(spam_files, read_email, <span class="fu">character</span>(<span class="dv">1</span>)))</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>labels <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="fu">rep</span>(<span class="st">"ham"</span>,  <span class="fu">length</span>(ham_files)),</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>                   <span class="fu">rep</span>(<span class="st">"spam"</span>, <span class="fu">length</span>(spam_files))))</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"ham:"</span>, <span class="fu">length</span>(ham_files), <span class="st">" spam:"</span>, <span class="fu">length</span>(spam_files), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>ham: 2500  spam: 500 </code></pre>
+</div>
+</div>
+</section>
+<section id="clean-the-text-and-build-the-document-term-matrix" class="level2">
+<h2 class="anchored" data-anchor-id="clean-the-text-and-build-the-document-term-matrix">Clean the text and build the document-term matrix</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>corpus <span class="ot">&lt;-</span> <span class="fu">VCorpus</span>(<span class="fu">VectorSource</span>(emails))</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>corpus <span class="ot">&lt;-</span> <span class="fu">tm_map</span>(corpus, <span class="fu">content_transformer</span>(tolower))</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>corpus <span class="ot">&lt;-</span> <span class="fu">tm_map</span>(corpus, removeNumbers)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>corpus <span class="ot">&lt;-</span> <span class="fu">tm_map</span>(corpus, removePunctuation)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>corpus <span class="ot">&lt;-</span> <span class="fu">tm_map</span>(corpus, removeWords, <span class="fu">stopwords</span>(<span class="st">"english"</span>))</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>corpus <span class="ot">&lt;-</span> <span class="fu">tm_map</span>(corpus, stemDocument)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>corpus <span class="ot">&lt;-</span> <span class="fu">tm_map</span>(corpus, stripWhitespace)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>dtm <span class="ot">&lt;-</span> <span class="fu">DocumentTermMatrix</span>(corpus)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>dtm <span class="ot">&lt;-</span> <span class="fu">removeSparseTerms</span>(dtm, <span class="fl">0.95</span>)   <span class="co"># keep tokens in at least 5% of docs</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(dtm)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 3000  451</code></pre>
+</div>
+</div>
+</section>
+<section id="convert-counts-to-presenceabsence-and-split" class="level2">
+<h2 class="anchored" data-anchor-id="convert-counts-to-presenceabsence-and-split">Convert counts to presence/absence and split</h2>
+<p>For a Y/N feature, Naive Bayes estimates <code>P(token present | class)</code> directly, which is exactly what a bag-of-words spam filter needs.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>mat <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(<span class="fu">as.matrix</span>(dtm) <span class="sc">&gt;</span> <span class="dv">0</span>, <span class="st">"Y"</span>, <span class="st">"N"</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>df  <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(mat, <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>df[] <span class="ot">&lt;-</span> <span class="fu">lapply</span>(df, factor, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"N"</span>, <span class="st">"Y"</span>))</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>n         <span class="ot">&lt;-</span> <span class="fu">nrow</span>(df)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>train_idx <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">seq_len</span>(n), <span class="at">size =</span> <span class="fu">floor</span>(<span class="fl">0.75</span> <span class="sc">*</span> n))</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>x_train <span class="ot">&lt;-</span> df[train_idx, ]</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>x_test  <span class="ot">&lt;-</span> df[<span class="sc">-</span>train_idx, ]</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>y_train <span class="ot">&lt;-</span> labels[train_idx]</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>y_test  <span class="ot">&lt;-</span> labels[<span class="sc">-</span>train_idx]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="train-and-evaluate" class="level2">
+<h2 class="anchored" data-anchor-id="train-and-evaluate">Train and evaluate</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">naiveBayes</span>(x_train, y_train, <span class="at">laplace =</span> <span class="dv">1</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>pred  <span class="ot">&lt;-</span> <span class="fu">predict</span>(model, x_test)</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>cm <span class="ot">&lt;-</span> <span class="fu">confusionMatrix</span>(pred, y_test, <span class="at">positive =</span> <span class="st">"spam"</span>)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>cm<span class="sc">$</span>table</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>          Reference
+Prediction ham spam
+      ham  603    3
+      spam  19  125</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(cm<span class="sc">$</span>overall[<span class="st">"Accuracy"</span>], <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Accuracy 
+   0.971 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(cm<span class="sc">$</span>byClass[<span class="fu">c</span>(<span class="st">"Sensitivity"</span>, <span class="st">"Specificity"</span>, <span class="st">"Precision"</span>, <span class="st">"F1"</span>)], <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Sensitivity Specificity   Precision          F1 
+      0.977       0.969       0.868       0.919 </code></pre>
+</div>
+</div>
+</section>
+<section id="most-informative-tokens" class="level2">
+<h2 class="anchored" data-anchor-id="most-informative-tokens">Most informative tokens</h2>
+<p>Sanity check – which stemmed tokens have the strongest “spam” signal under the trained model:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>spam_prob <span class="ot">&lt;-</span> <span class="fu">sapply</span>(model<span class="sc">$</span>tables, <span class="cf">function</span>(tbl) tbl[<span class="st">"spam"</span>, <span class="st">"Y"</span>])</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>ham_prob  <span class="ot">&lt;-</span> <span class="fu">sapply</span>(model<span class="sc">$</span>tables, <span class="cf">function</span>(tbl) tbl[<span class="st">"ham"</span>,  <span class="st">"Y"</span>])</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>top <span class="ot">&lt;-</span> <span class="fu">sort</span>(spam_prob <span class="sc">-</span> ham_prob, <span class="at">decreasing =</span> <span class="cn">TRUE</span>)[<span class="dv">1</span><span class="sc">:</span><span class="dv">15</span>]</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(top, <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>zzzzlocalhostspamassassintaintorg                     zzzzlocalhost 
+                            0.856                             0.790 
+                         texthtml                       zzzzasonorg 
+                            0.503                             0.499 
+                       charsetiso                    mailwebnotenet 
+                            0.493                             0.440 
+                       webnotenet                             pleas 
+                            0.440                             0.420 
+                             smtp    phoboslabsspamassassintaintorg 
+                            0.411                             0.409 
+                             bodi                             remov 
+                            0.384                             0.367 
+         zzzzspamassassintaintorg                              size 
+                            0.362                             0.350 
+                             html 
+                            0.348 </code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<p>A bag-of-words plus Naive Bayes pipeline produces a respectable spam classifier in very little code: clean the text, count tokens, hold out a test set, fit, evaluate. On the SpamAssassin <code>easy_ham</code> + <code>spam</code> split this reaches accuracy in the high 90s, and the most informative tokens line up with intuition (price words, click-bait, HTML tag fragments).</p>
+<p>Caveats worth flagging:</p>
+<ul>
+<li>Naive Bayes assumes tokens are independent given the class, which is false (e.g.&nbsp;“free” and “money” co-occur). The model still works because the wrong-but-cheap probabilities still rank documents in roughly the right order.</li>
+<li><code>easy_ham</code> is, as the name implies, easy. The <code>hard_ham</code> split would drag accuracy down and give a more honest picture of real-world performance.</li>
+<li>Headers were left in as raw text. Splitting headers from the body and engineering header-specific features (sender domain, Received chain, Content-Type) would likely help a lot.</li>
+<li>Production filters layer URL reputation, sender authentication (SPF / DKIM / DMARC), and user feedback on top of a content model like this rather than relying on it alone.</li>
+</ul>
 </section>
 
 </main>

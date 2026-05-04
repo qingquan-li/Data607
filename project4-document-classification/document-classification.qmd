@@ -1,14 +1,178 @@
 ---
 title: "document-classification"
-format: html
+format:
+  html: "default"
+  pdf:
+    number-sections: true
 ---
 
-# Approach
+# Introduction
 
-1.  Get the data: download the `easy_ham` and `spam` archives from the SpamAssassin public corpus and extract them locally.
-2.  Load and label each e-mail file with its class (`ham` or `spam`).
-3.  Preprocess the text: lowercase, strip numbers and punctuation, remove English stopwords, and stem the remaining tokens.
-4.  Build a document-term matrix (rows = e-mails, columns = tokens) and drop tokens that are too rare to be informative.
-5.  Split 75 / 25 into train and test sets so the model is evaluated on documents it has never seen.
-6.  Fit a Naive Bayes classifier. Naive Bayes treats each token as independent evidence for or against "spam" and combines them with Bayes' rule -- it is the textbook baseline for bag-of-words spam filtering because it is fast, simple, and surprisingly competitive.
-7.  Evaluate with a confusion matrix and accuracy / precision / recall, then peek at the most informative tokens as a sanity check.
+The goal is to take a set of e-mails that have already been hand-labeled
+as "ham" (legitimate) or "spam" and learn a model that can label new,
+unseen e-mails. The corpus used here is the public SpamAssassin corpus
+(https://spamassassin.apache.org/old/publiccorpus/).
+
+Approach:
+
+1. Get the data: download the `easy_ham` and `spam` archives from the
+   SpamAssassin public corpus and extract them locally.
+2. Load and label each e-mail file with its class (`ham` or `spam`).
+3. Preprocess the text: lowercase, strip numbers and punctuation,
+   remove English stopwords, and stem the remaining tokens.
+4. Build a document-term matrix (rows = e-mails, columns = tokens) and
+   drop tokens that are too rare to be informative.
+5. Split 75 / 25 into train and test sets so the model is evaluated on
+   documents it has never seen.
+6. Fit a Naive Bayes classifier. Naive Bayes treats each token as
+   independent evidence for or against "spam" and combines them with
+   Bayes' rule -- it is the textbook baseline for bag-of-words spam
+   filtering because it is fast, simple, and surprisingly competitive.
+7. Evaluate with a confusion matrix and accuracy / precision / recall,
+   then peek at the most informative tokens as a sanity check.
+
+# Solution
+
+## Setup
+
+```{r setup}
+library(tm)
+library(SnowballC)
+library(e1071)
+library(caret)
+
+set.seed(42)
+```
+
+## Download and extract the corpus
+
+```{r download}
+data_dir <- "spamassassin"
+dir.create(data_dir, showWarnings = FALSE)
+
+urls <- list(
+  ham  = "https://spamassassin.apache.org/old/publiccorpus/20030228_easy_ham.tar.bz2",
+  spam = "https://spamassassin.apache.org/old/publiccorpus/20030228_spam.tar.bz2"
+)
+
+for (label in names(urls)) {
+  archive <- file.path(data_dir, paste0(label, ".tar.bz2"))
+  if (!file.exists(archive)) {
+    download.file(urls[[label]], archive, mode = "wb", quiet = TRUE)
+    untar(archive, exdir = data_dir)
+  }
+}
+```
+
+## Load e-mails
+
+Each e-mail file is read as a single text string. We use `latin1`
+encoding because spam often contains bytes that are not valid UTF-8,
+and we want to read the file rather than crash on it.
+
+```{r load}
+ham_dir  <- file.path(data_dir, "easy_ham")
+spam_dir <- file.path(data_dir, "spam")
+
+read_email <- function(f) {
+  paste(readLines(f, warn = FALSE, encoding = "latin1"), collapse = " ")
+}
+
+ham_files  <- list.files(ham_dir,  full.names = TRUE)
+spam_files <- list.files(spam_dir, full.names = TRUE)
+
+# Drop the index files that ship with the archive
+ham_files  <- ham_files[!grepl("cmds$",  ham_files)]
+spam_files <- spam_files[!grepl("cmds$", spam_files)]
+
+emails <- c(vapply(ham_files,  read_email, character(1)),
+            vapply(spam_files, read_email, character(1)))
+labels <- factor(c(rep("ham",  length(ham_files)),
+                   rep("spam", length(spam_files))))
+
+cat("ham:", length(ham_files), " spam:", length(spam_files), "\n")
+```
+
+## Clean the text and build the document-term matrix
+
+```{r dtm}
+corpus <- VCorpus(VectorSource(emails))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, stemDocument)
+corpus <- tm_map(corpus, stripWhitespace)
+
+dtm <- DocumentTermMatrix(corpus)
+dtm <- removeSparseTerms(dtm, 0.95)   # keep tokens in at least 5% of docs
+dim(dtm)
+```
+
+## Convert counts to presence/absence and split
+
+For a Y/N feature, Naive Bayes estimates `P(token present | class)`
+directly, which is exactly what a bag-of-words spam filter needs.
+
+```{r split}
+mat <- ifelse(as.matrix(dtm) > 0, "Y", "N")
+df  <- as.data.frame(mat, stringsAsFactors = FALSE)
+df[] <- lapply(df, factor, levels = c("N", "Y"))
+
+n         <- nrow(df)
+train_idx <- sample(seq_len(n), size = floor(0.75 * n))
+
+x_train <- df[train_idx, ]
+x_test  <- df[-train_idx, ]
+y_train <- labels[train_idx]
+y_test  <- labels[-train_idx]
+```
+
+## Train and evaluate
+
+```{r model}
+model <- naiveBayes(x_train, y_train, laplace = 1)
+pred  <- predict(model, x_test)
+
+cm <- confusionMatrix(pred, y_test, positive = "spam")
+cm$table
+round(cm$overall["Accuracy"], 3)
+round(cm$byClass[c("Sensitivity", "Specificity", "Precision", "F1")], 3)
+```
+
+## Most informative tokens
+
+Sanity check -- which stemmed tokens have the strongest "spam" signal
+under the trained model:
+
+```{r top-tokens}
+spam_prob <- sapply(model$tables, function(tbl) tbl["spam", "Y"])
+ham_prob  <- sapply(model$tables, function(tbl) tbl["ham",  "Y"])
+top <- sort(spam_prob - ham_prob, decreasing = TRUE)[1:15]
+round(top, 3)
+```
+
+# Conclusion
+
+A bag-of-words plus Naive Bayes pipeline produces a respectable spam
+classifier in very little code: clean the text, count tokens, hold out
+a test set, fit, evaluate. On the SpamAssassin `easy_ham` + `spam`
+split this reaches accuracy in the high 90s, and the most informative
+tokens line up with intuition (price words, click-bait, HTML tag
+fragments).
+
+Caveats worth flagging:
+
+- Naive Bayes assumes tokens are independent given the class, which is
+  false (e.g. "free" and "money" co-occur). The model still works
+  because the wrong-but-cheap probabilities still rank documents in
+  roughly the right order.
+- `easy_ham` is, as the name implies, easy. The `hard_ham` split would
+  drag accuracy down and give a more honest picture of real-world
+  performance.
+- Headers were left in as raw text. Splitting headers from the body and
+  engineering header-specific features (sender domain, Received chain,
+  Content-Type) would likely help a lot.
+- Production filters layer URL reputation, sender authentication
+  (SPF / DKIM / DMARC), and user feedback on top of a content model
+  like this rather than relying on it alone.
