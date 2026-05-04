@@ -1,0 +1,62 @@
+---
+title:  "Discussion 11 — Analyze a Commercial Recommender: Spotify"
+format:
+  html:
+    toc: true
+    theme: flatly
+  pdf: "default"
+---
+
+## Chosen System: Spotify
+
+Spotify is one of the most widely used music recommender systems, powering features like **Discover Weekly**, **Daily Mix**, **Release Radar**, and the personalized homepage.
+
+## 1 — Scenario Design
+
+### For Spotify's Customers (Listeners)
+
+**Who are the target users?**
+Music listeners across all ages and tastes — from casual background-music users to playlist curators and music discoverers.
+
+**What are their key goals?**
+
+- Find new music that matches their taste without manually searching
+- Re-access songs/artists they already love quickly
+- Get mood- or activity-appropriate music (workout, focus, sleep)
+
+**How can Spotify help them accomplish those goals?**
+
+- Auto-generated personalized playlists refreshed weekly/daily
+- "Made For You" homepage shelves
+- Mood- and activity-based playlist recommendations
+- Smart shuffle and radio stations seeded from a song or artist
+
+### For Spotify (the Organization)
+
+**Who are the target users?** Internal stakeholders — product, content licensing, advertising, and artist-relations teams.
+
+**Key goals:** Maximize engagement (minutes streamed), reduce churn, retain Premium subscribers, support emerging artists, and grow ad revenue on the free tier.
+
+**How recommendations help:** Strong personalization keeps users on-platform longer (more ad impressions on free tier, lower cancellation on Premium), and curated discovery features differentiate Spotify from Apple Music and YouTube Music.
+
+## 2 — Reverse Engineering Spotify's Approach
+
+Based on Spotify engineering blog posts and academic papers, Spotify uses a **hybrid recommender** combining three signals:
+
+1. **Collaborative filtering** — analyzes co-listening patterns across millions of users (similar to Amazon's item-to-item approach in the Linden et al. paper).
+2. **Content-based audio analysis** — convolutional neural networks process raw audio to extract features (tempo, key, mood, instrumentation), helping with cold-start for new releases (similar to the NYT engine's need to recommend fresh content).
+3. **Natural language processing** — scrapes blogs, reviews, and playlist titles to build a "cultural vector" describing each track.
+
+These three signals are blended into a single embedding space where songs and users are represented as vectors; recommendations are produced via approximate nearest-neighbor search (likely using Annoy, Spotify's open-source library).
+
+## 3 — Recommendations for Improvement
+
+1. **More transparent "why this song?" explanations.** Like Amazon's "Why was I recommended this?" link, Spotify could surface the reasoning (e.g., "Because you liked X" or "Listeners of Y also enjoyed this").
+2. **Negative feedback signals.** Currently a thumbs-down only mildly affects recommendations. A clearer "never play this artist again" option would reduce frustration.
+3. **Mood/context awareness.** Use time of day, location, and device type more aggressively (e.g., calmer recommendations late at night on a phone vs. high-energy tracks on a smart speaker in the morning).
+4. **Combat filter bubbles.** Like the NYT engine's "back-off" approach to widen recommendations, Spotify could deliberately inject serendipitous tracks outside a user's typical genres to encourage discovery.
+5. **Better support for shared accounts.** Family plans often blend tastes badly; profile-aware listening signals could fix this.
+
+## 5 — Conclusion
+
+Spotify's recommender succeeds by blending collaborative filtering, deep-learned audio features, and cultural NLP signals — a more sophisticated hybrid than either Amazon's pure item-to-item approach or the NYT's collaborative topic modeling. Its biggest opportunity is improving **user control and transparency** over recommendations, an area where commercial recommenders broadly still underdeliver.
