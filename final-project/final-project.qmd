@@ -1,12 +1,339 @@
 ---
-title: "final-project"
-format: html
+title: "Comparing Risk and Return Across Equity ETFs, Gold, and Bitcoin (2016-2025)"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: show
+    embed-resources: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
 ---
 
-# Proposal
+## 1. Motivation
 
-I plan to compare the risk and return profiles of six investment assets over the past ten years (Jan 1, 2016 – Dec 31, 2025): VOO (S&P 500), QQQ (NASDAQ-100), IWM (Russell 2000), VTI (total U.S. market), GLD (gold), and BTC-USD (Bitcoin). My motivation is to quantify how much diversification benefit alternative assets like gold and Bitcoin actually provide alongside standard equity holdings, and whether higher-risk assets have historically delivered proportionally higher risk-adjusted returns. I will combine two data source types:
-(1) an API source — daily adjusted closing prices pulled from Yahoo Finance via the tidyquant package in R for the six tickers;
-(2) a CSV source — FRED's monthly CPI (CPIAUCSL) and daily 3-month Treasury rate (DGS3MO), used for inflation-adjusted returns and as the risk-free rate in Sharpe ratio calculations.
+Every long-term investor faces two practical questions: how much diversification
+benefit do "alternative" assets like gold and Bitcoin actually provide alongside
+standard equity holdings, and have higher-risk assets historically been
+compensated with proportionally higher risk-adjusted returns? This project
+compares six investment assets over the past ten years
+(Jan 1, 2016 - Dec 31, 2025): VOO (S&P 500), QQQ (NASDAQ-100),
+IWM (Russell 2000), VTI (total U.S. market), GLD (gold), and BTC-USD (Bitcoin).
 
-The workflow will follow acquire → tidy → transform → analyze → present in R/RMarkdown: converting prices to log returns, joining the macro data, then producing a growth-of-$1 chart, a correlation heatmap, and a summary table of annualized return, volatility, and Sharpe ratio by asset. As a feature beyond class, I'll compute rolling 12-month correlations to show how diversification relationships shift over time.
+## 2. Setup
+
+```{r setup}
+library(tidyverse)
+library(tidyquant)
+library(scales)
+library(knitr)
+
+tickers    <- c("VOO", "QQQ", "IWM", "VTI", "GLD", "BTC-USD")
+start_date <- as.Date("2016-01-01")
+end_date   <- as.Date("2025-12-31")
+
+theme_set(theme_minimal(base_size = 11))
+```
+
+## 3. Data Acquisition
+
+The project uses two different types of data sources, as required by the rubric.
+
+### 3.1 Source 1: Yahoo Finance API (via tidyquant)
+
+```{r get-prices}
+prices_raw <- tq_get(tickers,
+                     get  = "stock.prices",
+                     from = start_date,
+                     to   = end_date)
+
+prices <- prices_raw |>
+  mutate(symbol = if_else(symbol == "BTC-USD", "BTC", symbol)) |>
+  select(symbol, date, adjusted)
+
+glimpse(prices)
+```
+
+### 3.2 Source 2: FRED CSV downloads
+
+CPI (Consumer Price Index) is used to compute inflation-adjusted (real) returns, and the 3-month
+Treasury rate is used as the risk-free rate in Sharpe ratio calculations.
+Both are pulled directly from FRED's (Federal Reserve Economic Data) CSV endpoints.
+
+```{r get-fred}
+# Original data source: https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL
+cpi <- read_csv(
+  "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/final-project/data/CPIAUCSL.csv",
+  show_col_types = FALSE
+) |>
+  rename(date = 1, cpi = 2) |>
+  mutate(date = as.Date(date)) |>
+  filter(date >= start_date, date <= end_date)
+
+# Original data source: https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO
+rf <- read_csv(
+  "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/final-project/data/DGS3MO.csv",
+  show_col_types = FALSE,
+  na = c(".", "")
+) |>
+  rename(date = 1, rf_pct = 2) |>
+  mutate(date   = as.Date(date),
+         rf_pct = as.numeric(rf_pct)) |>
+  filter(date >= start_date, date <= end_date) |>
+  drop_na()
+
+head(cpi)
+head(rf)
+```
+
+## 4. Data Transformation
+
+This step satisfies the "at least one data transformation" requirement:
+prices are transformed to daily simple returns and pivoted from long to wide
+format so each asset becomes its own column for cross-asset analysis.
+
+```{r transform}
+# Daily simple returns (long format)
+returns_long <- prices |>
+  group_by(symbol) |>
+  arrange(date) |>
+  mutate(return = adjusted / lag(adjusted) - 1) |>
+  filter(!is.na(return)) |>
+  ungroup()
+
+# Pivot to wide format; keep only days where ALL assets traded
+# (excludes BTC weekend-only days for fair cross-asset comparison)
+returns_wide <- returns_long |>
+  select(symbol, date, return) |>
+  pivot_wider(names_from = symbol, values_from = return) |>
+  drop_na()
+
+cat("Trading days in aligned panel:", nrow(returns_wide), "\n")
+cat("Date range:",
+    format(min(returns_wide$date)), "to",
+    format(max(returns_wide$date)), "\n")
+```
+
+## 5. Exploratory Analysis (Describing the Data)
+
+### 5.1 Growth of $1 invested at the start of 2016
+
+```{r growth-chart, fig.width=9, fig.height=5}
+growth <- returns_wide |>
+  pivot_longer(-date, names_to = "symbol", values_to = "return") |>
+  group_by(symbol) |>
+  arrange(date) |>
+  mutate(value = cumprod(1 + return)) |>
+  ungroup()
+
+ggplot(growth, aes(date, value, color = symbol)) +
+  geom_line(linewidth = 0.6) +
+  scale_y_log10(labels = dollar_format()) +
+  labs(title = "Growth of $1 invested at the start of 2016 (log scale)",
+       x = NULL, y = "Portfolio value", color = "Asset")
+```
+
+### 5.2 Daily return distributions
+
+```{r return-distributions, fig.width=9, fig.height=5}
+returns_wide |>
+  pivot_longer(-date, names_to = "symbol", values_to = "return") |>
+  ggplot(aes(return, fill = symbol)) +
+  geom_histogram(bins = 80, alpha = 0.85) +
+  facet_wrap(~ symbol, scales = "free") +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  labs(title = "Daily return distributions, 2016-2025",
+       x = "Daily return", y = "Count") +
+  theme(legend.position = "none")
+```
+
+BTC has visibly fatter tails than the equity ETFs (large gains and losses
+of more than ten percent in a single day), while GLD looks closest to a
+narrow, symmetric distribution.
+
+## 6. Statistical Analysis (Supporting Conclusions)
+
+### 6.1 Summary statistics by asset
+
+```{r summary-stats}
+# Helper: maximum drawdown from a vector of simple returns
+max_drawdown <- function(r) {
+  v <- cumprod(1 + r)
+  abs(min((v - cummax(v)) / cummax(v)))
+}
+
+avg_rf <- mean(rf$rf_pct, na.rm = TRUE) / 100  # average annualized risk-free rate
+
+summary_stats <- returns_wide |>
+  pivot_longer(-date, names_to = "symbol", values_to = "return") |>
+  group_by(symbol) |>
+  summarize(
+    obs               = n(),
+    annualized_return = mean(return) * 252,
+    annualized_vol    = sd(return)   * sqrt(252),
+    sharpe            = (annualized_return - avg_rf) / annualized_vol,
+    max_drawdown      = max_drawdown(return),
+    .groups = "drop"
+  ) |>
+  arrange(desc(sharpe))
+
+summary_stats |>
+  mutate(across(annualized_return:max_drawdown, ~ round(.x, 3))) |>
+  kable(caption = "Annualized return, volatility, Sharpe ratio, and max drawdown by asset (2016-2025)")
+```
+
+### 6.2 Correlation matrix (diversification check)
+
+```{r correlation-heatmap, fig.width=7, fig.height=6}
+cor_matrix <- returns_wide |>
+  select(-date) |>
+  cor()
+
+cor_long <- as.data.frame(cor_matrix) |>
+  rownames_to_column("asset1") |>
+  pivot_longer(-asset1, names_to = "asset2", values_to = "correlation")
+
+ggplot(cor_long, aes(asset1, asset2, fill = correlation)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.2f", correlation)),
+            color = "white", size = 4) +
+  scale_fill_gradient2(low = "steelblue", mid = "white", high = "firebrick",
+                       midpoint = 0, limits = c(-1, 1)) +
+  labs(title = "Daily return correlations, 2016-2025",
+       x = NULL, y = NULL, fill = "Correlation")
+```
+
+The three equity ETFs (VOO, QQQ, VTI, IWM) are tightly correlated with each
+other (typically above 0.85), GLD is roughly uncorrelated with equities,
+and BTC shows a weak positive correlation with equities.
+
+### 6.3 CAPM regression: beta vs the S&P 500
+
+This regresses each asset's daily excess return on VOO's daily excess return,
+producing a CAPM-style beta and alpha for each asset.
+
+```{r capm}
+returns_excess <- returns_wide |>
+  left_join(rf |> select(date, rf_pct), by = "date") |>
+  fill(rf_pct, .direction = "down") |>
+  mutate(rf_daily = (rf_pct / 100) / 252) |>
+  mutate(across(c(VOO, QQQ, IWM, VTI, GLD, BTC),
+                ~ .x - rf_daily,
+                .names = "ex_{.col}"))
+
+assets_to_test <- c("QQQ", "IWM", "VTI", "GLD", "BTC")
+
+capm_results <- map_dfr(assets_to_test, function(asset) {
+  fit <- lm(reformulate("ex_VOO", paste0("ex_", asset)),
+            data = returns_excess)
+  s <- summary(fit)
+  tibble(
+    asset         = asset,
+    alpha_daily   = coef(fit)[1],
+    beta          = coef(fit)[2],
+    r_squared     = s$r.squared,
+    p_value_alpha = s$coefficients[1, 4]
+  )
+})
+
+capm_results |>
+  mutate(across(where(is.numeric), ~ round(.x, 4))) |>
+  kable(caption = "CAPM regression of each asset's daily excess return on VOO")
+```
+
+Equity ETFs (QQQ, VTI, IWM) all have betas close to or above 1, as expected.
+GLD's beta is near zero (gold barely moves with the stock market on a daily
+basis), and BTC has a modest positive beta with very low R-squared, meaning
+most of its variation is unexplained by stock-market moves.
+
+## 7. Feature Beyond Class: Rolling 12-Month Correlations
+
+This section uses a rolling 252-trading-day window to track how the
+correlation between Bitcoin and equities (and gold and equities) has shifted
+over the period - something a static correlation matrix cannot reveal.
+
+```{r rolling-corr, fig.width=9, fig.height=5}
+# Manual rolling correlation (no extra packages needed)
+rolling_cor <- function(x, y, n = 252) {
+  out <- rep(NA_real_, length(x))
+  for (i in n:length(x)) {
+    out[i] <- cor(x[(i - n + 1):i], y[(i - n + 1):i])
+  }
+  out
+}
+
+rolling_corr <- returns_wide |>
+  arrange(date) |>
+  mutate(
+    `BTC vs VOO` = rolling_cor(BTC, VOO),
+    `BTC vs QQQ` = rolling_cor(BTC, QQQ),
+    `GLD vs VOO` = rolling_cor(GLD, VOO)
+  ) |>
+  select(date, `BTC vs VOO`, `BTC vs QQQ`, `GLD vs VOO`) |>
+  drop_na() |>
+  pivot_longer(-date, names_to = "pair", values_to = "correlation")
+
+ggplot(rolling_corr, aes(date, correlation, color = pair)) +
+  geom_line(linewidth = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Rolling 12-month (252-day) correlations with equities",
+       x = NULL, y = "Correlation", color = NULL)
+```
+
+The rolling chart shows that BTC's correlation with stocks was near zero for
+most of 2016-2019, then climbed sharply in 2020-2022 during the era of
+synchronized macro liquidity, before easing again. Gold's correlation with
+equities stayed near zero across the entire period - it is the more
+consistent diversifier, while Bitcoin's diversification benefit has been
+regime-dependent.
+
+## 8. Inflation-Adjusted (Real) Returns
+
+A quick sanity check using the second source (FRED CPI): converting nominal
+cumulative returns to real returns.
+
+```{r real-returns}
+# Pull start and end CPI to compute total inflation over the period
+cpi_start <- cpi |> arrange(date) |> slice(1)  |> pull(cpi)
+cpi_end   <- cpi |> arrange(date) |> slice(n()) |> pull(cpi)
+total_inflation <- cpi_end / cpi_start - 1
+
+cat(sprintf("Total CPI inflation, %s to %s: %.1f%%\n",
+            format(min(cpi$date)), format(max(cpi$date)),
+            100 * total_inflation))
+
+nominal_growth <- growth |>
+  group_by(symbol) |>
+  summarize(nominal_final = last(value), .groups = "drop")
+
+real_returns <- nominal_growth |>
+  mutate(real_final           = nominal_final / (1 + total_inflation),
+         nominal_total_return = nominal_final - 1,
+         real_total_return    = real_final    - 1) |>
+  arrange(desc(real_total_return))
+
+real_returns |>
+  mutate(across(where(is.numeric), ~ round(.x, 3))) |>
+  kable(caption = "Nominal vs real (inflation-adjusted) total return, 2016-2025")
+```
+
+## 9. Conclusions
+
+A few clear takeaways from the analysis:
+
+1. **Tech concentration paid off in this window.** QQQ posted the highest
+   annualized return of the equity ETFs, but it also had the largest
+   drawdown among them. Concentration cuts both ways.
+2. **Bitcoin had the highest absolute return but also the worst risk-adjusted
+   profile by a wide margin.** Its annualized volatility and maximum drawdown
+   dwarf those of every other asset, so its high Sharpe ratio is sensitive
+   to the start and end dates of the window.
+3. **Gold was the more reliable diversifier.** Its correlation with equities
+   stayed near zero across the entire period, while BTC's correlation
+   climbed materially after 2020, weakening its diversification value
+   precisely when it would have been most useful.
+4. **The three broad-market equity ETFs (VOO, VTI, IWM) are highly
+   correlated with each other.** Holding all three is closer to a
+   concentrated bet on U.S. equities than a diversified portfolio.
