@@ -18,11 +18,31 @@ Every long-term investor faces two practical questions: how much diversification
 benefit do "alternative" assets like gold and Bitcoin actually provide alongside
 standard equity holdings, and have higher-risk assets historically been
 compensated with proportionally higher risk-adjusted returns? This project
-compares six investment assets over the past ten years
+compares five investment assets over the past ten years
 (Jan 1, 2016 - Dec 31, 2025): VOO (S&P 500), QQQ (NASDAQ-100),
-IWM (Russell 2000), VTI (total U.S. market), GLD (gold), and BTC-USD (Bitcoin).
+IWM (Russell 2000), GLD (gold), and BTC-USD (Bitcoin).
 
-## 2. Setup
+## 2. Background: What These Assets Are
+
+::: {.callout-note}
+## Quick primer for non-finance readers
+An **ETF (Exchange-Traded Fund)** is a basket of many stocks bundled into
+a single ticker that trades like one stock. Buying one share of VOO is a
+cheap, instant way to own a tiny slice of all 500 companies in the S&P 500.
+:::
+
+| Ticker | What it is | What it represents |
+|---|---|---|
+| **VOO** | Vanguard S&P 500 ETF | 500 largest U.S. companies — the standard "U.S. stock market" benchmark |
+| **QQQ** | Invesco QQQ Trust | 100 largest non-financial NASDAQ stocks — heavy tech tilt (Apple, Microsoft, NVIDIA, etc.) |
+| **IWM** | iShares Russell 2000 ETF | 2,000 small-cap U.S. companies — captures the size premium |
+| **GLD** | SPDR Gold Trust | Tracks the price of physical gold — a classic "safe haven" / inflation hedge |
+| **BTC-USD** | Bitcoin in U.S. dollars | The original cryptocurrency — high volatility, often pitched as "digital gold" |
+
+The goal is to compare these very different asset types on a level
+playing field using ten years of daily price data.
+
+## 3. Setup
 
 ```{r setup}
 library(tidyverse)
@@ -30,18 +50,26 @@ library(tidyquant)
 library(scales)
 library(knitr)
 
-tickers    <- c("VOO", "QQQ", "IWM", "VTI", "GLD", "BTC-USD")
+tickers    <- c("VOO", "QQQ", "IWM", "GLD", "BTC-USD")
 start_date <- as.Date("2016-01-01")
 end_date   <- as.Date("2025-12-31")
 
 theme_set(theme_minimal(base_size = 11))
 ```
 
-## 3. Data Acquisition
+## 4. Data Acquisition
 
 The project uses two different types of data sources, as required by the rubric.
 
-### 3.1 Source 1: Yahoo Finance API (via tidyquant)
+### 4.1 Source 1: Yahoo Finance API (via tidyquant)
+
+::: {.callout-tip}
+## Why "adjusted" closing price?
+The adjusted close corrects historical prices for dividends and stock splits,
+so a $1 invested on day one really does grow to the value shown by the
+chart. The raw close price would jump down on every dividend payment and
+make returns look smaller than they actually were.
+:::
 
 ```{r get-prices}
 prices_raw <- tq_get(tickers,
@@ -56,28 +84,48 @@ prices <- prices_raw |>
 glimpse(prices)
 ```
 
-### 3.2 Source 2: FRED CSV downloads
+### 4.2 Source 2: FRED CSV downloads
 
-CPI (Consumer Price Index) is used to compute inflation-adjusted (real) returns, and the 3-month
+::: {.callout-tip}
+## What is FRED and why use it?
+**FRED** (Federal Reserve Economic Data) is the St. Louis Fed's free
+public database of U.S. economic time series. We pull two series:
+
+- **CPI** (Consumer Price Index) — measures the price level of a basket
+  of goods over time. The ratio of two CPI values tells us cumulative
+  inflation between those dates.
+- **3-month Treasury rate** — the interest rate on short-term U.S.
+  government debt, used as the "risk-free rate" because Treasuries are
+  considered the safest dollar-denominated investment.
+:::
+
+CPI is used to compute inflation-adjusted (real) returns, and the 3-month
 Treasury rate is used as the risk-free rate in Sharpe ratio calculations.
-Both are pulled directly from FRED's (Federal Reserve Economic Data) CSV endpoints.
+The helper below downloads each FRED series once into a local `data/`
+folder and reuses the cached copy on subsequent renders. The `data/`
+folder is committed to the repo so the project is self-contained, runs
+offline, and is fully reproducible by the grader.
 
 ```{r get-fred}
-# Original data source: https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL
-cpi <- read_csv(
-  "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/final-project/data/CPIAUCSL.csv",
-  show_col_types = FALSE
-) |>
+# Download a FRED series CSV once; reuse the local cached copy after that.
+# Delete the file in data/ to force a refresh.
+fred_csv <- function(series_id, dir = "data", na_strings = c("", "NA")) {
+  dir.create(dir, showWarnings = FALSE, recursive = TRUE)
+  path <- file.path(dir, paste0(series_id, ".csv"))
+  if (!file.exists(path)) {
+    url <- paste0("https://fred.stlouisfed.org/graph/fredgraph.csv?id=",
+                  series_id)
+    download.file(url, path, mode = "wb", quiet = TRUE)
+  }
+  read_csv(path, show_col_types = FALSE, na = na_strings)
+}
+
+cpi <- fred_csv("CPIAUCSL") |>
   rename(date = 1, cpi = 2) |>
   mutate(date = as.Date(date)) |>
   filter(date >= start_date, date <= end_date)
 
-# Original data source: https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO
-rf <- read_csv(
-  "https://raw.githubusercontent.com/qingquan-li/Data607/refs/heads/main/final-project/data/DGS3MO.csv",
-  show_col_types = FALSE,
-  na = c(".", "")
-) |>
+rf <- fred_csv("DGS3MO", na_strings = c(".", "", "NA")) |>
   rename(date = 1, rf_pct = 2) |>
   mutate(date   = as.Date(date),
          rf_pct = as.numeric(rf_pct)) |>
@@ -88,7 +136,17 @@ head(cpi)
 head(rf)
 ```
 
-## 4. Data Transformation
+## 5. Data Transformation
+
+::: {.callout-tip}
+## What is a "return"?
+A **return** is the percentage change in price from one day to the next.
+If a stock goes from \$100 to \$102, the daily return is `+2%`. We work
+with returns instead of raw prices because returns are comparable across
+assets (a \$50 stock and a \$5,000 stock can both have a 1% daily move)
+and tend to be roughly stationary, which is what most statistical methods
+assume.
+:::
 
 This step satisfies the "at least one data transformation" requirement:
 prices are transformed to daily simple returns and pivoted from long to wide
@@ -116,9 +174,18 @@ cat("Date range:",
     format(max(returns_wide$date)), "\n")
 ```
 
-## 5. Exploratory Analysis (Describing the Data)
+## 6. Exploratory Analysis (Describing the Data)
 
-### 5.1 Growth of $1 invested at the start of 2016
+### 6.1 Growth of $1 invested at the start of 2016
+
+::: {.callout-note}
+## Reading this chart
+This is the most intuitive way to compare assets: if you had put exactly
+\$1 into each on Jan 1, 2016, what would it be worth on each later date?
+The y-axis uses a **log scale** so that a doubling looks the same size
+whether it's \$1 → \$2 or \$100 → \$200, which keeps the high-flying
+assets from squashing the others into a flat line.
+:::
 
 ```{r growth-chart, fig.width=9, fig.height=5}
 growth <- returns_wide |>
@@ -135,7 +202,7 @@ ggplot(growth, aes(date, value, color = symbol)) +
        x = NULL, y = "Portfolio value", color = "Asset")
 ```
 
-### 5.2 Daily return distributions
+### 6.2 Daily return distributions
 
 ```{r return-distributions, fig.width=9, fig.height=5}
 returns_wide |>
@@ -153,9 +220,26 @@ BTC has visibly fatter tails than the equity ETFs (large gains and losses
 of more than ten percent in a single day), while GLD looks closest to a
 narrow, symmetric distribution.
 
-## 6. Statistical Analysis (Supporting Conclusions)
+## 7. Statistical Analysis (Supporting Conclusions)
 
-### 6.1 Summary statistics by asset
+### 7.1 Summary statistics by asset
+
+::: {.callout-important}
+## Key finance metrics in plain English
+
+- **Annualized return** — average daily return scaled up to a yearly figure
+  (multiplied by 252 trading days per year). Answers "on average, how much
+  did this asset gain per year?"
+- **Annualized volatility** — standard deviation of daily returns scaled
+  to a yearly figure (multiplied by √252). It's the standard measure of
+  risk: bigger number means bumpier ride.
+- **Sharpe ratio** — `(return − risk-free rate) / volatility`. Reward per
+  unit of risk. Higher is better. A Sharpe of 1.0 is considered good for
+  a long-only investment; 2.0 is excellent.
+- **Maximum drawdown** — the worst peak-to-trough loss an investor would
+  have suffered if they bought at the worst time. A 50% drawdown means
+  you'd have lost half your money at some point before recovering.
+:::
 
 ```{r summary-stats}
 # Helper: maximum drawdown from a vector of simple returns
@@ -184,7 +268,17 @@ summary_stats |>
   kable(caption = "Annualized return, volatility, Sharpe ratio, and max drawdown by asset (2016-2025)")
 ```
 
-### 6.2 Correlation matrix (diversification check)
+### 7.2 Correlation matrix (diversification check)
+
+::: {.callout-note}
+## Correlation and diversification
+**Correlation** measures how closely two assets move together, on a
+−1 to +1 scale: +1 means they move in lockstep, 0 means no relationship,
+−1 means they move in exact opposite directions. For a portfolio, you
+want assets with *low* correlation — that way when one zigs, another zags,
+and the total swings less than any single piece would on its own. This is
+the mathematical basis of **diversification**.
+:::
 
 ```{r correlation-heatmap, fig.width=7, fig.height=6}
 cor_matrix <- returns_wide |>
@@ -205,11 +299,31 @@ ggplot(cor_long, aes(asset1, asset2, fill = correlation)) +
        x = NULL, y = NULL, fill = "Correlation")
 ```
 
-The three equity ETFs (VOO, QQQ, VTI, IWM) are tightly correlated with each
-other (typically above 0.85), GLD is roughly uncorrelated with equities,
+The three equity ETFs (VOO, QQQ, IWM) are tightly correlated with each
+other (typically above 0.80), GLD is roughly uncorrelated with equities,
 and BTC shows a weak positive correlation with equities.
 
-### 6.3 CAPM regression: beta vs the S&P 500
+### 7.3 CAPM regression: beta vs the S&P 500
+
+::: {.callout-important}
+## What is CAPM, beta, and alpha?
+The **Capital Asset Pricing Model (CAPM)** is a workhorse finance model
+that explains an asset's returns in terms of the overall stock market.
+We regress each asset's excess return (return minus the risk-free rate)
+on the S&P 500's excess return. The two key outputs:
+
+- **Beta (β)** — how sensitive the asset is to market moves. β = 1 means
+  it moves one-for-one with the S&P 500. β = 1.5 means it's 50% more
+  volatile (amplifies market moves). β near 0 means it's roughly independent
+  of the stock market.
+- **Alpha (α)** — the average daily return that *isn't* explained by market
+  exposure. Positive alpha means the asset beat what its market sensitivity
+  alone would predict.
+
+**R²** tells us how much of the asset's variation the S&P 500 actually
+explains — high R² means "this asset is essentially a leveraged bet on the
+stock market"; low R² means "this asset has its own life."
+:::
 
 This regresses each asset's daily excess return on VOO's daily excess return,
 producing a CAPM-style beta and alpha for each asset.
@@ -219,11 +333,11 @@ returns_excess <- returns_wide |>
   left_join(rf |> select(date, rf_pct), by = "date") |>
   fill(rf_pct, .direction = "down") |>
   mutate(rf_daily = (rf_pct / 100) / 252) |>
-  mutate(across(c(VOO, QQQ, IWM, VTI, GLD, BTC),
+  mutate(across(c(VOO, QQQ, IWM, GLD, BTC),
                 ~ .x - rf_daily,
                 .names = "ex_{.col}"))
 
-assets_to_test <- c("QQQ", "IWM", "VTI", "GLD", "BTC")
+assets_to_test <- c("QQQ", "IWM", "GLD", "BTC")
 
 capm_results <- map_dfr(assets_to_test, function(asset) {
   fit <- lm(reformulate("ex_VOO", paste0("ex_", asset)),
@@ -243,16 +357,26 @@ capm_results |>
   kable(caption = "CAPM regression of each asset's daily excess return on VOO")
 ```
 
-Equity ETFs (QQQ, VTI, IWM) all have betas close to or above 1, as expected.
+Equity ETFs (QQQ, IWM) all have betas close to or above 1, as expected.
 GLD's beta is near zero (gold barely moves with the stock market on a daily
 basis), and BTC has a modest positive beta with very low R-squared, meaning
 most of its variation is unexplained by stock-market moves.
 
-## 7. Feature Beyond Class: Rolling 12-Month Correlations
+## 8. Feature Beyond Class: Rolling 12-Month Correlations
+
+::: {.callout-note}
+## Why "rolling" correlation matters
+A single correlation number for the whole 10-year window hides whether
+the relationship was stable or changed over time. A **rolling correlation**
+computes the correlation over a moving window (here, the most recent
+252 trading days ≈ 1 year), then slides it forward day by day. The result
+shows how diversification benefits have evolved through different market
+regimes — useful because a hedge that worked in 2017 might not work in 2022.
+:::
 
 This section uses a rolling 252-trading-day window to track how the
 correlation between Bitcoin and equities (and gold and equities) has shifted
-over the period - something a static correlation matrix cannot reveal.
+over the period — something a static correlation matrix cannot reveal.
 
 ```{r rolling-corr, fig.width=9, fig.height=5}
 # Manual rolling correlation (no extra packages needed)
@@ -289,7 +413,17 @@ equities stayed near zero across the entire period - it is the more
 consistent diversifier, while Bitcoin's diversification benefit has been
 regime-dependent.
 
-## 8. Inflation-Adjusted (Real) Returns
+## 9. Inflation-Adjusted (Real) Returns
+
+::: {.callout-note}
+## Nominal vs real returns
+A **nominal** return is the headline number — the actual change in dollar
+value. A **real** return strips out inflation to show the change in
+*purchasing power*. If your portfolio grew 30% but prices also rose 30%,
+your real return was zero — you can buy exactly the same amount of stuff
+as before. This is why long-horizon investors care more about real returns
+than nominal ones.
+:::
 
 A quick sanity check using the second source (FRED CPI): converting nominal
 cumulative returns to real returns.
@@ -319,7 +453,7 @@ real_returns |>
   kable(caption = "Nominal vs real (inflation-adjusted) total return, 2016-2025")
 ```
 
-## 9. Conclusions
+## 10. Conclusions
 
 A few clear takeaways from the analysis:
 
@@ -334,6 +468,8 @@ A few clear takeaways from the analysis:
    stayed near zero across the entire period, while BTC's correlation
    climbed materially after 2020, weakening its diversification value
    precisely when it would have been most useful.
-4. **The three broad-market equity ETFs (VOO, VTI, IWM) are highly
-   correlated with each other.** Holding all three is closer to a
-   concentrated bet on U.S. equities than a diversified portfolio.
+4. **The three equity ETFs (VOO, QQQ, IWM) move together more than you
+   might expect.** Even though they cover different segments of the market
+   (large-cap, tech-tilted, small-cap), their daily correlations all sit
+   above 0.80 — meaning a portfolio of "diversified U.S. equities" is
+   really one bet on the U.S. stock market, not three independent ones.
